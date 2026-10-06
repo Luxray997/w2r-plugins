@@ -1,0 +1,15 @@
+[workspace]
+resolver = "3"
+members = ["plugins/*", "tools/w2r-publish"]
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.85"
+
+[workspace.dependencies]
+# TODO(before the first CI run): the w2rpm repo must be pushed, then switch these to
+#   { git = "https://github.com/hastinbe/w2rpm", rev = "<commit>" }
+# so a plugin build never changes under us. Until then they point at the sibling checkout.
+w2r-abi = { path = "../w2rpm/crates/w2r-abi" }
+w2r-formats = { path = "../w2rpm/crates/w2r-formats" }
+w2rpm-lib = { path = "../w2rpm/crates/w2rpm-lib" }

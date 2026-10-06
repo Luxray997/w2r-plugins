@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "id": "hello-example",
+  "name": "Hello Example",
+  "version": "1.0.0",
+  "author": "w2r-plugins contributors",
+  "description": "Logs a line when it loads. A template for new plugins.",
+  "entry": "hello_example.dll",
+  "abi": 1,
+  "game_builds": ["1.0.2.2818"],
+  "capabilities": [],
+  "affects_simulation": false,
+  "dependencies": []
+}

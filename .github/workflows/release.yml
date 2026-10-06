@@ -1,0 +1,82 @@
+name: release
+# Builds packages for new plugin versions and assembles the UNSIGNED index. Signing is offline
+# (docs/SIGNING.md); this workflow has no key and cannot publish an index.
+on:
+  push:
+    branches: [main]
+    paths: ["plugins/**", "tools/**", "keys/**", "Cargo.*", ".github/workflows/release.yml"]
+  workflow_dispatch: {} # re-assemble without changes to extend `expires`
+
+permissions:
+  contents: write # package releases only
+
+env:
+  PAGES_BASE: https://hastinbe.github.io/w2r-plugins
+  DOWNLOAD_BASE: https://github.com/hastinbe/w2r-plugins/releases/download
+
+jobs:
+  assemble:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: i686-pc-windows-msvc
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Check, build, package
+        run: |
+          cargo run --locked -q -p w2r-publish -- check
+          cargo build --locked --release --target i686-pc-windows-msvc -p hello-example -p w2r-chat
+          cargo run --locked -q -p w2r-publish -- package \
+            --target-dir target/i686-pc-windows-msvc/release --out out/packages
+
+      - name: Fetch and verify the published index
+        id: prev
+        run: |
+          mkdir -p out/prev
+          if curl -fsSL "$PAGES_BASE/index.json" -o out/prev/index.json \
+             && curl -fsSL "$PAGES_BASE/index.json.sig" -o out/prev/index.json.sig; then
+            args=()
+            for k in keys/*.pub; do args+=(--key "$k"); done
+            cargo run --locked -q -p w2r-publish -- verify \
+              --index out/prev/index.json --sig out/prev/index.json.sig "${args[@]}"
+            echo "have=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No published index yet; starting at serial 1."
+            echo "have=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish package releases for new versions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # One immutable release per (id, version). An existing tag is never touched.
+          for z in out/packages/*.zip; do
+            name=$(basename "$z" .zip)
+            tag="pkg-$name"
+            if gh release view "$tag" >/dev/null 2>&1; then
+              echo "$tag exists, leaving it alone"
+            else
+              gh release create "$tag" "$z" --title "$name" --notes "Package for $name. Listed once a signed index includes it."
+            fi
+          done
+
+      - name: Assemble the unsigned index
+        run: |
+          prev=()
+          if [ "${{ steps.prev.outputs.have }}" = "true" ]; then prev=(--previous out/prev/index.json); fi
+          # Package URLs are permanent release assets, one release per (id, version).
+          cargo run --locked -q -p w2r-publish -- index \
+            --packages out/packages \
+            --url-template "$DOWNLOAD_BASE/pkg-{name}/{name}.zip" \
+            --out out/index.json "${prev[@]}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-index
+          path: out/index.json
+          if-no-files-found: error
