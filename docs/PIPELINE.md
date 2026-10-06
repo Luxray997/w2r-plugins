@@ -34,3 +34,21 @@ manual `workflow_dispatch` run of the release workflow: no new packages, `serial
 - The index never loses an entry. Removing a plugin (security) is a manual, reviewed edit of the
   assembled index, announced in the release notes.
 - Everything in an index must pass `w2rpm-lib`'s parser; nothing is signed that the manager would refuse.
+
+## Repository access for CI
+
+`w2r-publish` and the plugins depend on `w2r-abi`, `w2r-formats` and `w2rpm-lib` from the w2rpm
+repository, pinned by commit in the root `Cargo.toml`. While w2rpm is private, both workflows need a
+token to fetch it:
+
+1. Create a **fine-grained personal access token** (GitHub, Settings, Developer settings) owned by the
+   account that owns w2rpm, with **only** the repository `hastinbe/w2rpm` and the single permission
+   **Contents: Read-only**. Give it an expiry (for example 90 days) and note the date.
+2. Add it to this repository as an Actions secret named `W2RPM_READ` (Settings, Secrets and variables,
+   Actions).
+3. Both workflows start with a step that points git at the token for that one repository and fail with a
+   clear message if the secret is missing. Renew the token before it expires.
+
+Cargo fetches through the git CLI (`CARGO_NET_GIT_FETCH_WITH_CLI`) so it honours that setting. Pull
+requests from forks receive no secrets, so CI cannot build them; a maintainer re-runs the checks from a
+branch in this repository. Delete the step and the secret when w2rpm becomes public.
