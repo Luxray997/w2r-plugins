@@ -643,6 +643,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 [[package]]
 name = "w2r-abi"
 version = "0.1.0"
+source = "git+https://github.com/hastinbe/w2rpm?rev=792a821bdee5a25938620694581224097f5766be#792a821bdee5a25938620694581224097f5766be"
 
 [[package]]
 name = "w2r-chat"
@@ -655,6 +656,7 @@ dependencies = [
 [[package]]
 name = "w2r-formats"
 version = "0.1.0"
+source = "git+https://github.com/hastinbe/w2rpm?rev=792a821bdee5a25938620694581224097f5766be#792a821bdee5a25938620694581224097f5766be"
 
 [[package]]
 name = "w2r-publish"
@@ -670,6 +672,7 @@ dependencies = [
 [[package]]
 name = "w2rpm-lib"
 version = "0.1.0"
+source = "git+https://github.com/hastinbe/w2rpm?rev=792a821bdee5a25938620694581224097f5766be#792a821bdee5a25938620694581224097f5766be"
 dependencies = [
  "base64 0.22.1",
  "blake2",

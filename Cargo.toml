@@ -7,9 +7,9 @@ edition = "2024"
 rust-version = "1.85"
 
 [workspace.dependencies]
-# TODO(before the first CI run): the w2rpm repo must be pushed, then switch these to
-#   { git = "https://github.com/hastinbe/w2rpm", rev = "<commit>" }
-# so a plugin build never changes under us. Until then they point at the sibling checkout.
-w2r-abi = { path = "../w2rpm/crates/w2r-abi" }
-w2r-formats = { path = "../w2rpm/crates/w2r-formats" }
-w2rpm-lib = { path = "../w2rpm/crates/w2rpm-lib" }
+# Pinned to a commit of the host/manager repo so a plugin build never changes under us. Bump the
+# rev in its own PR when the ABI changes. For local work against a sibling checkout see
+# CONTRIBUTING.md (an untracked .cargo/config.toml patch).
+w2r-abi = { git = "https://github.com/hastinbe/w2rpm", rev = "792a821bdee5a25938620694581224097f5766be" }
+w2r-formats = { git = "https://github.com/hastinbe/w2rpm", rev = "792a821bdee5a25938620694581224097f5766be" }
+w2rpm-lib = { git = "https://github.com/hastinbe/w2rpm", rev = "792a821bdee5a25938620694581224097f5766be" }
