@@ -7,6 +7,11 @@ on:
 permissions:
   contents: read
 
+# Fetch git dependencies (w2rpm) with the git CLI, so cargo uses git's credential setup instead of
+# its own libgit2 client.
+env:
+  CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+
 jobs:
   check:
     runs-on: windows-latest
