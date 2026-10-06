@@ -72,7 +72,7 @@ jobs:
             if gh release view "$tag" >/dev/null 2>&1; then
               echo "$tag exists, leaving it alone"
             else
-              gh release create "$tag" "$z" --title "$name" --notes "Package for $name. Listed once a signed index includes it."
+              gh release create "$tag" "$z" --latest=false --title "$name" --notes "Package for $name. Listed once a signed index includes it."
             fi
           done
 
