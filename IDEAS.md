@@ -147,6 +147,28 @@ Records games and plays them back, similar to the replay plugin for War2Combat.
 - **Capabilities:** `game.read`; playback needs to drive the game, so likely `hooks.raw`. Needs the
   two-approval review, with every hook documented.
 
+## Resource sharing
+
+Lets teammates in a team game send resources to each other.
+
+- **Commands:** `!send <player> <amount> <resource>` (for example `!send Bob 500 gold`), plus
+  optional hotkeys or a small panel for quick fixed amounts.
+- **Team only:** allow transfers only between allied players, never to opponents or observers.
+- **Limits:** validate that the sender has enough, and optionally cap per-transfer amounts or add
+  a cooldown to prevent spam.
+- **Feedback:** confirm to both players in chat (`Alice sent 500 gold to Bob`) so it is never
+  silent.
+- **Host options:** let the lobby enable or disable the feature, or charge a small transfer fee,
+  so it can be turned off for competitive or ladder games.
+- **Open questions:**
+  - Whether resources can be modified at runtime, and how to keep the change identical on every
+    client.
+  - Preventing abuse such as feeding a teammate in a 2v2 ladder game, and whether it should be
+    disabled for rated games.
+- **Capabilities:** `game.read`, `chat.read`, `chat.write`, `net.send` to sync transfers, and
+  `hooks.raw` to change resource values. Set `affects_simulation: true`, since all players must
+  agree on the result.
+
 ---
 
 ## More ideas
