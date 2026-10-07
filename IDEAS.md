@@ -122,6 +122,31 @@ Shows the same map preview you get in the lobby from within a running game.
     fog-of-war games.
 - **Capabilities:** `game.read`; drawing the overlay likely needs `hooks.raw`.
 
+## Replays
+
+Records games and plays them back, similar to the replay plugin for War2Combat.
+
+- **Recording:** capture every game automatically (or opt in per game) and save it to disk with
+  metadata: map, players, teams, settings, date, duration, and result.
+- **Approach:** most likely record the initial settings plus the stream of player commands, then
+  re-run the simulation on playback. This keeps files small, but only works if the simulation is
+  deterministic.
+- **Playback:** pause, resume, speed up or slow down, and jump to a point in time. Jumping needs
+  periodic snapshots or a re-simulation from the start.
+- **Replay browser:** list saved replays with filters by map, player, or date, and a `!replay
+  play <name>` command.
+- **Version handling:** tag each replay with the game version and plugin version so mismatches are
+  detected instead of desyncing silently.
+- **Pairs well with:** the *Observer system* (view a replay with the same free camera and stats
+  overlay) and the *Ladder* (attach replays to rated games for disputes).
+- **Open questions:**
+  - How War2Combat's replay plugin captures and replays, and whether that approach carries over.
+  - Whether the game is deterministic enough to replay from commands alone, or if state has to be
+    recorded directly.
+  - Sharing replays between players, and how to prevent a replay file from being abused.
+- **Capabilities:** `game.read`; playback needs to drive the game, so likely `hooks.raw`. Needs the
+  two-approval review, with every hook documented.
+
 ---
 
 ## More ideas
