@@ -68,24 +68,6 @@ An observer mode in the style of war2combat's, for spectating and casting games.
 - **Capabilities:** `game.read`, `hooks.raw` (most likely). Needs the two-approval review, with
   every hook documented.
 
-## Remember game settings
-
-Saves the settings from your last created game and applies them automatically the next time you
-create one.
-
-- **What to save:** game speed, map choice or filters, resources, victory conditions, team setup,
-  and any other option on the create-game screen.
-- **Profiles:** optionally keep named presets (`!preset save 2v2-ladder`, `!preset load ...`)
-  in addition to "last used".
-- **Behavior:** capture settings when the game is created, restore them when the create-game
-  screen opens, and fall back to defaults if a saved value is no longer valid (for example, a map
-  that was removed).
-- **Open questions:**
-  - Where the plugin can read and write the create-game fields.
-  - Where to store the data on disk, and whether plugins get a sanctioned storage location.
-- **Capabilities:** `game.read`; writing settings into the UI may need `hooks.raw`. If it alters
-  anything that must match between players, set `affects_simulation: true`.
-
 ## Change settings from the lobby
 
 Lets the host edit game settings from inside the game lobby instead of having to recreate the
