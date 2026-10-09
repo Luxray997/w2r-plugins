@@ -495,7 +495,6 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 [[package]]
 name = "w2r-abi"
 version = "0.1.0"
-source = "git+https://github.com/hastinbe/w2rpm?rev=7ae9a80f20b8e74b91204f2576c7a2ecb39cf7fc#7ae9a80f20b8e74b91204f2576c7a2ecb39cf7fc"
 
 [[package]]
 name = "w2r-chat"
@@ -508,7 +507,14 @@ dependencies = [
 [[package]]
 name = "w2r-formats"
 version = "0.1.0"
-source = "git+https://github.com/hastinbe/w2rpm?rev=7ae9a80f20b8e74b91204f2576c7a2ecb39cf7fc#7ae9a80f20b8e74b91204f2576c7a2ecb39cf7fc"
+
+[[package]]
+name = "w2r-map-preview"
+version = "0.1.0"
+dependencies = [
+ "w2r-abi",
+ "w2r-preview",
+]
 
 [[package]]
 name = "w2r-player-colors"
@@ -516,6 +522,10 @@ version = "0.1.0"
 dependencies = [
  "w2r-abi",
 ]
+
+[[package]]
+name = "w2r-preview"
+version = "0.1.0"
 
 [[package]]
 name = "w2r-publish"
@@ -538,7 +548,6 @@ dependencies = [
 [[package]]
 name = "w2rpm-lib"
 version = "0.1.0"
-source = "git+https://github.com/hastinbe/w2rpm?rev=7ae9a80f20b8e74b91204f2576c7a2ecb39cf7fc#7ae9a80f20b8e74b91204f2576c7a2ecb39cf7fc"
 dependencies = [
  "sha2",
  "ureq",

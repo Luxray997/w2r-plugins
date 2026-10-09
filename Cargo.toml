@@ -13,3 +13,4 @@ rust-version = "1.85"
 w2r-abi = { git = "https://github.com/hastinbe/w2rpm", rev = "7ae9a80f20b8e74b91204f2576c7a2ecb39cf7fc" }
 w2r-formats = { git = "https://github.com/hastinbe/w2rpm", rev = "7ae9a80f20b8e74b91204f2576c7a2ecb39cf7fc" }
 w2rpm-lib = { git = "https://github.com/hastinbe/w2rpm", rev = "7ae9a80f20b8e74b91204f2576c7a2ecb39cf7fc" }
+w2r-preview = { git = "https://github.com/hastinbe/w2rpm", rev = "793b7748c9e881d43c158625f5d4a144098e1709" }

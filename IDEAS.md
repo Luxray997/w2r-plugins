@@ -68,42 +68,6 @@ An observer mode in the style of war2combat's, for spectating and casting games.
 - **Capabilities:** `game.read`, `hooks.raw` (most likely). Needs the two-approval review, with
   every hook documented.
 
-## Change settings from the lobby
-
-Lets the host edit game settings from inside the game lobby instead of having to recreate the
-game.
-
-- **Chat commands:** `!set speed fastest`, `!set map <name>`, and similar, with `!settings` to
-  print the current values.
-- **Host only:** ignore commands from non-hosts, and optionally let the host delegate to
-  trusted players.
-- **Sync:** broadcast changes so every player's lobby shows the same settings, and warn when a
-  change would invalidate ready states.
-- **Pairs well with:** *Remember game settings* and *Auto-balance teams*, since changing a setting
-  can change the team layout.
-- **Open questions:**
-  - Whether the game allows changing these settings after creation, or if the plugin has to work
-    around it.
-  - Preventing mid-countdown changes.
-- **Capabilities:** `game.read`, `chat.read`, `chat.write`, `net.send` for syncing; likely
-  `hooks.raw`. Flag as `affects_simulation: true`, since settings must match across players.
-
-## In-game map preview
-
-Shows the same map preview you get in the lobby from within a running game.
-
-- **Display:** a toggleable overlay or panel showing the terrain layout, start locations, and
-  resources, reusing the lobby's preview rendering where possible.
-- **Live view (stretch):** mark your units and structures on the preview, and show explored
-  versus unexplored areas, so it doubles as a minimap alternative.
-- **Hotkey:** a key to open and close it without pausing play.
-- **Open questions:**
-  - Whether the lobby preview data is still available once the game has started, or must be
-    reloaded from the map file.
-  - Not revealing anything the player shouldn't see, such as other players' start locations in
-    fog-of-war games.
-- **Capabilities:** `game.read`; drawing the overlay likely needs `hooks.raw`.
-
 ## Replays
 
 Records games and plays them back, similar to the replay plugin for War2Combat.
