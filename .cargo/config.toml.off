@@ -1,0 +1,4 @@
+[patch."https://github.com/hastinbe/w2rpm"]
+w2r-abi = { path = "../w2rpm/crates/w2r-abi" }
+w2r-formats = { path = "../w2rpm/crates/w2r-formats" }
+w2rpm-lib = { path = "../w2rpm/crates/w2rpm-lib" }

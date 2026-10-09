@@ -1,19 +1,22 @@
 name: release
-# Builds packages for new plugin versions and assembles the UNSIGNED index. Signing is offline
-# (docs/SIGNING.md); this workflow has no key and cannot publish an index.
+# Builds packages for new plugin versions, assembles the index and publishes it to the gh-pages
+# branch (GitHub Pages serves it). The index is not signed (docs/PIPELINE.md).
 on:
   push:
     branches: [main]
-    paths: ["plugins/**", "tools/**", "keys/**", "Cargo.*", ".github/workflows/release.yml"]
-  workflow_dispatch: {} # re-assemble without changes to extend `expires`
+    paths: ["plugins/**", "tools/**", "Cargo.*", ".github/workflows/release.yml"]
+  workflow_dispatch: {} # re-run without changes
 
 permissions:
-  contents: write # package releases only
+  contents: write # package releases and the gh-pages branch
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 env:
   # Fetch git dependencies (w2rpm) with the git CLI, so cargo uses git's credential setup.
   CARGO_NET_GIT_FETCH_WITH_CLI: "true"
-  PAGES_BASE: https://hastinbe.github.io/w2r-plugins
   DOWNLOAD_BASE: https://github.com/hastinbe/w2r-plugins/releases/download
 
 jobs:
@@ -27,7 +30,6 @@ jobs:
       - name: Let git read the private w2rpm repository
         # A fine-grained token with read access to hastinbe/w2rpm only (docs/PIPELINE.md). Remove
         # this step when w2rpm is public. Pull requests from forks get no secrets and cannot build.
-        shell: bash
         env:
           W2RPM_READ: ${{ secrets.W2RPM_READ }}
         run: |
@@ -45,16 +47,13 @@ jobs:
           cargo run --locked -q -p w2r-publish -- package \
             --target-dir target/i686-pc-windows-msvc/release --out out/packages
 
-      - name: Fetch and verify the published index
+      - name: Read the published index
         id: prev
         run: |
           mkdir -p out/prev
-          if curl -fsSL "$PAGES_BASE/index.json" -o out/prev/index.json \
-             && curl -fsSL "$PAGES_BASE/index.json.sig" -o out/prev/index.json.sig; then
-            args=()
-            for k in keys/*.pub; do args+=(--key "$k"); done
-            cargo run --locked -q -p w2r-publish -- verify \
-              --index out/prev/index.json --sig out/prev/index.json.sig "${args[@]}"
+          if git fetch --depth 1 origin gh-pages 2>/dev/null \
+             && git show FETCH_HEAD:index.json > out/prev/index.json 2>/dev/null; then
+            cargo run --locked -q -p w2r-publish -- verify --index out/prev/index.json
             echo "have=true" >> "$GITHUB_OUTPUT"
           else
             echo "No published index yet; starting at serial 1."
@@ -72,11 +71,11 @@ jobs:
             if gh release view "$tag" >/dev/null 2>&1; then
               echo "$tag exists, leaving it alone"
             else
-              gh release create "$tag" "$z" --latest=false --title "$name" --notes "Package for $name. Listed once a signed index includes it."
+              gh release create "$tag" "$z" --latest=false --title "$name" --notes "Package for $name."
             fi
           done
 
-      - name: Assemble the unsigned index
+      - name: Assemble the index
         run: |
           prev=()
           if [ "${{ steps.prev.outputs.have }}" = "true" ]; then prev=(--previous out/prev/index.json); fi
@@ -85,9 +84,43 @@ jobs:
             --packages out/packages \
             --url-template "$DOWNLOAD_BASE/pkg-{name}/{name}.zip" \
             --out out/index.json "${prev[@]}"
+          cargo run --locked -q -p w2r-publish -- verify --index out/index.json
 
       - uses: actions/upload-artifact@v4
         with:
-          name: unsigned-index
+          name: index
           path: out/index.json
           if-no-files-found: error
+
+  publish:
+    needs: assemble
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: index
+          path: out
+      - name: Push index.json to gh-pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          repo="https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          if git ls-remote --exit-code --heads "$repo" gh-pages >/dev/null 2>&1; then
+            git clone --depth 1 --branch gh-pages "$repo" pages
+          else
+            mkdir pages
+            git -C pages init -q -b gh-pages
+            git -C pages remote add origin "$repo"
+          fi
+          cp out/index.json pages/index.json
+          touch pages/.nojekyll
+          cd pages
+          git add index.json .nojekyll
+          if git diff --cached --quiet; then
+            echo "index.json is unchanged"
+            exit 0
+          fi
+          git -c user.name="github-actions" -c user.email="actions@users.noreply.github.com" \
+            commit -q -m "Publish index"
+          git push origin gh-pages

@@ -1,9 +1,9 @@
-//! Assembling the unsigned `index.json` and checking a signed one.
+//! Assembling `index.json` and checking one.
 //!
 //! Published versions are immutable: a version already in the previous index keeps its published
 //! entry (url, hash, size) even when a fresh build of the same version differs byte for byte.
 //! Shipping a change therefore needs a version bump. The previous index must be one the caller
-//! has already verified (the release workflow runs `verify` on it first).
+//! has already checked (the release workflow runs `verify` on it first).
 
 use crate::Result;
 use serde_json::{Value, json};
@@ -13,8 +13,7 @@ use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use w2r_formats::semver::Version;
-use w2rpm_lib::index::{format_time, parse_index, verify_index_any};
-use w2rpm_lib::minisign::PublicKey;
+use w2rpm_lib::index::{format_time, parse_index};
 
 /// The oldest manager that can install what this tool publishes.
 const MIN_MANAGER: &str = "0.1.0";
@@ -25,8 +24,6 @@ pub struct Options {
     pub url_template: String,
     pub out: PathBuf,
     pub previous: Option<PathBuf>,
-    pub days: i64,
-    pub next_key: Option<String>,
     pub now: Option<i64>,
 }
 
@@ -131,49 +128,30 @@ pub fn assemble(o: &Options) -> Result<()> {
             json!({ "id": id, "versions": v.into_iter().map(|x| x.1).collect::<Vec<_>>() })
         })
         .collect();
-    let mut doc = json!({
+    let doc = json!({
         "schema": 1,
         "serial": serial,
         "generated": format_time(now),
-        "expires": format_time(now + o.days * 86_400),
         "plugins": list,
     });
-    if let Some(k) = &o.next_key {
-        doc["next_key"] = json!(k);
-    }
     let raw = serde_json::to_vec(&doc).map_err(|e| e.to_string())?;
-    // Our own output must pass the manager's rules before anyone is asked to sign it.
-    parse_index(&raw, 0, now).map_err(|r| format!("assembled index fails the manager's rules: {r}"))?;
+    // Our own output must pass the manager's rules before it is published.
+    parse_index(&raw, 0).map_err(|r| format!("assembled index fails the manager's rules: {r}"))?;
     fs::write(&o.out, &raw).map_err(|e| format!("{}: {e}", o.out.display()))?;
     println!("{}: serial {serial}, {} bytes", o.out.display(), raw.len());
     Ok(())
 }
 
-pub fn verify_signed(
-    index: &Path,
-    sig: &Path,
-    keys: &[String],
-    now: Option<i64>,
-    min_serial: u64,
-) -> Result<()> {
-    if keys.is_empty() {
-        return Err("at least one --key is required".into());
-    }
-    let mut trusted = Vec::new();
-    for k in keys {
-        let text = fs::read_to_string(k).map_err(|e| format!("{k}: {e}"))?;
-        trusted.push(PublicKey::parse_file(&text).ok_or_else(|| format!("{k}: not a minisign public key"))?);
-    }
+/// Parses `index` with the manager's rules; `min_serial` is the serial it must not fall below.
+pub fn verify(index: &Path, min_serial: u64) -> Result<()> {
     let raw = fs::read(index).map_err(|e| format!("{}: {e}", index.display()))?;
-    let sig_text = fs::read_to_string(sig).map_err(|e| format!("{}: {e}", sig.display()))?;
-    let idx = verify_index_any(&raw, &sig_text, &trusted, min_serial, now.unwrap_or_else(unix_now))
-        .map_err(|r| format!("index refused: {r}"))?;
+    let idx = parse_index(&raw, min_serial).map_err(|r| format!("index refused: {r}"))?;
     let versions: usize = idx.plugins.iter().map(|p| p.versions.len()).sum();
     println!(
-        "ok: serial {}, {} plugin(s), {versions} version(s), expires {}",
+        "ok: serial {}, {} plugin(s), {versions} version(s), generated {}",
         idx.serial,
         idx.plugins.len(),
-        format_time(idx.expires)
+        format_time(idx.generated)
     );
     Ok(())
 }

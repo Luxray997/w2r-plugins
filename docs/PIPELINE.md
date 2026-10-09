@@ -1,8 +1,13 @@
-# Pipeline: from pull request to signed index
+# Pipeline: from pull request to published index
 
 ```
-PR ──review──► main ──CI──► packages + unsigned index ──signer──► index.json + .sig ──► Pages
+PR ──review──► main ──CI──► packages + index.json ──► gh-pages ──► GitHub Pages
 ```
+
+The index is not signed. Users are protected by HTTPS and by the SHA-256 and size of every package
+in the index; whoever controls this repository can publish any plugin, so keep two-factor
+authentication on the account and review pull requests (see the w2rpm repository's `docs/index.md`,
+"Trust").
 
 1. **Pull request.** CI (`ci.yml`) runs `w2r-publish check` (manifests valid, id equals folder name,
    `Cargo.toml` version equals `plugin.json` version), builds every plugin for `i686-pc-windows-msvc`
@@ -12,28 +17,26 @@ PR ──review──► main ──CI──► packages + unsigned index ──
    mode, runs `w2r-publish package` (deterministic zips holding only `plugin.json`, the DLL,
    `README.md`, `LICENSE`) and uploads the zips as assets of a GitHub release named
    `pkg-<id>-<version>`. Package URLs are therefore permanent, and a release is never edited.
-3. **Assemble.** The same workflow downloads the currently published, signed `index.json` and its
-   signature, runs `w2r-publish verify` on them against `keys/*.pub`, then runs
-   `w2r-publish index --previous` to produce an **unsigned** `index.json`: the old entries
-   untouched, new versions appended, `serial` plus one, `expires` 90 days out. The tool runs the
-   manager's own parser over the result before it is accepted. The workflow stores it as the
-   `unsigned-index` artifact and stops. **CI holds no signing key.**
-4. **Sign.** A signer follows [SIGNING.md](SIGNING.md): download the artifact, compare it with what
-   the release shows, sign with the real `minisign`, run `w2r-publish verify`, commit the pair to the
-   `gh-pages` branch.
-5. **Serve.** GitHub Pages serves `index.json` and `index.json.sig` from the `gh-pages` branch. The
-   manager's default index URL is that `index.json` (the `.sig` sits next to it).
+3. **Assemble.** The same workflow reads the currently published `index.json` from the `gh-pages`
+   branch, checks it with `w2r-publish verify`, then runs `w2r-publish index --previous` to produce
+   the new one: the old entries untouched, new versions appended, `serial` plus one. The tool runs
+   the manager's own parser over the result before it is accepted.
+4. **Publish.** A second job commits `index.json` to the `gh-pages` branch (creating it the first
+   time). GitHub Pages serves it; the manager's default index URL is
+   `https://hastinbe.github.io/w2r-plugins/index.json`.
 
-Re-signing without any plugin change (to extend `expires` before it lapses) is the same flow with the
-manual `workflow_dispatch` run of the release workflow: no new packages, `serial` plus one. Re-sign at least every 2 months (`expires` is 90 days).
+One-time setup: make the repository public (Pages on a private repository needs a paid plan, and
+users must be able to download the packages), then Settings, Pages, "Deploy from a branch",
+`gh-pages` / root.
 
 ## Rules the tooling enforces
 
 - A published `(id, version)` is immutable. A rebuild with a different hash keeps the published
   entry; changes ship under a new version.
-- The index never loses an entry. Removing a plugin (security) is a manual, reviewed edit of the
-  assembled index, announced in the release notes.
-- Everything in an index must pass `w2rpm-lib`'s parser; nothing is signed that the manager would refuse.
+- The index never loses an entry. Removing a plugin (security) is a manual, reviewed edit of
+  `index.json` on the `gh-pages` branch, announced in the release notes. Raise `serial` when you do.
+- Everything in an index must pass `w2rpm-lib`'s parser; nothing is published that the manager would
+  refuse.
 
 ## Repository access for CI
 
