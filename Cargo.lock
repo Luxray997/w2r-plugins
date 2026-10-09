@@ -539,6 +539,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "w2r-random-map"
+version = "0.1.0"
+dependencies = [
+ "w2r-abi",
+]
+
+[[package]]
 name = "w2r-remember-settings"
 version = "0.1.0"
 dependencies = [
