@@ -16,7 +16,7 @@ jobs:
   check:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Let git read the private w2rpm repository
         # A fine-grained token with read access to hastinbe/w2rpm only (docs/PIPELINE.md). Remove
         # this step when w2rpm is public. Pull requests from forks get no secrets and cannot build.
