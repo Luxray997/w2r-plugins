@@ -522,6 +522,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "w2r-remember-settings"
+version = "0.1.0"
+dependencies = [
+ "w2r-abi",
+]
+
+[[package]]
 name = "w2rpm-lib"
 version = "0.1.0"
 source = "git+https://github.com/hastinbe/w2rpm?rev=7ae9a80f20b8e74b91204f2576c7a2ecb39cf7fc#7ae9a80f20b8e74b91204f2576c7a2ecb39cf7fc"
