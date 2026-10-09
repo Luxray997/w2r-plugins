@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "id": "w2r-player-colors",
+  "name": "Player Color Bar",
+  "version": "0.1.0",
+  "author": "Beau Hastings",
+  "description": "Shows one box per player in their color in the top bar, to the right of your food count. Boxes disappear when a player leaves or is defeated, and a divider separates the teams.",
+  "entry": "w2r_player_colors.dll",
+  "abi": 1,
+  "game_builds": ["1.0.2.2818"],
+  "capabilities": ["game.read", "hooks.raw"],
+  "affects_simulation": false,
+  "dependencies": []
+}

@@ -151,25 +151,6 @@ Lets teammates in a team game send resources to each other.
   `hooks.raw` to change resource values. Set `affects_simulation: true`, since all players must
   agree on the result.
 
-## Player color bar
-
-Shows each player's color in the top bar of the game, to the right of your food count.
-
-- **Display:** one small box per player filled with their color, laid out in a row.
-- **Leavers:** a player's box disappears when they leave or are defeated, so the bar always shows
-  who is still in the game.
-- **Teams:** a divider between groups so teams are easy to tell apart (for example `■ ■ | ■ ■` in a
-  2v2).
-- **Stretch ideas:**
-  - Hover a box to see the player's name.
-  - Dim a box instead of removing it for players who were defeated but are still watching.
-  - Mark yourself with an outline or underline.
-- **Open questions:**
-  - Whether the plugin can draw into the top bar and position itself relative to the food count at
-    different resolutions.
-  - Detecting leavers and defeats reliably.
-- **Capabilities:** `game.read`; drawing into the UI likely needs `hooks.raw`.
-
 ---
 
 ## More ideas
