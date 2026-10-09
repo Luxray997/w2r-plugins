@@ -6,8 +6,8 @@ pub const SIZE_MAX: i32 = 512;
 pub const SIZE_DEFAULT: i32 = 256;
 /// Space between the top bar and the picture, and between the picture and the screen's left edge.
 pub const MARGIN: f32 = 8.0;
-/// Virtual-key code of the default key (`M`), used with Alt held.
-pub const VK_M: i32 = 0x4d;
+/// Height of the in-match top bar (UI units), which the picture sits under.
+pub const TOP_BAR_H: f32 = 16.0;
 
 /// Flips on the press of the hotkey, not while it is held, however many frames the press lasts.
 #[derive(Debug, Default)]

@@ -1,8 +1,9 @@
 # In-game Map Preview
 
 Shows the lobby's map preview (terrain, gold mines and start locations) over a running match.
-Press **Alt+M** to open and close it; it does not pause the game and the hotkey only works while
-the game window has the focus.
+Press the **backslash key (\)** to open and close it; it does not pause the game and the hotkey only works while
+the game window has the focus and the chat box is closed (while you type, Tab is the chat
+plugin's channel switch). The game's own Tab action (minimap terrain) still happens too.
 
 - **Placement:** just under the top bar, at the left edge.
 - **Settings** (in the in-game plugin list): the picture size, and whether it opens by itself when
