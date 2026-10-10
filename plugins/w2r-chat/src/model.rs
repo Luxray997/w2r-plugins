@@ -350,7 +350,11 @@ impl Message {
     pub fn new(text: &[u8], highlight: bool, channel: Channel, now_ms: u64) -> Option<Message> {
         // The game's text, byte for byte; a NUL would end the line early in its widgets, so cut
         // there.
-        let bytes: Vec<u8> = text.iter().copied().take_while(|&b| b != 0).collect();
+        let mut bytes: Vec<u8> = text.iter().copied().take_while(|&b| b != 0).collect();
+        // Some game messages end in a line break, which would draw as an empty line below.
+        while matches!(bytes.last(), Some(b'\r' | b'\n')) {
+            bytes.pop();
+        }
         if bytes.is_empty() {
             return None;
         }
@@ -762,6 +766,13 @@ mod tests {
         assert!(Message::new(b"\0abc", false, Channel::All, 0).is_none());
         let m = Message::new(b"ab\0cd", false, Channel::All, 0).unwrap();
         assert_eq!(m.text.to_str().unwrap(), "ab");
+    }
+
+    #[test]
+    fn trailing_line_breaks_are_dropped() {
+        let m = Message::new(b"Building Destroyed\r\n", false, Channel::System, 0).unwrap();
+        assert_eq!(m.text.to_str().unwrap(), "Building Destroyed");
+        assert!(Message::new(b"\r\n", false, Channel::All, 0).is_none());
     }
 
     #[test]

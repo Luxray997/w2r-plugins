@@ -460,7 +460,7 @@ unsafe fn group_region(g: &Game, ctx: *mut c_void) -> Option<(f32, f32)> {
     (w > 8.0 && w < 20000.0 && h > 0.0 && h < 20000.0).then_some((w, h))
 }
 
-unsafe fn fill_group_background(g: &Game, ctx: *mut c_void, alpha: i32) {
+unsafe fn fill_group_background(g: &Game, ctx: *mut c_void, alpha: i32, max_h: f32) {
     if alpha <= 0 {
         return;
     }
@@ -478,7 +478,7 @@ unsafe fn fill_group_background(g: &Game, ctx: *mut c_void, alpha: i32) {
                 b[0],
                 b[1],
                 b[2],
-                b[3],
+                b[3].min(max_h),
                 0.0,
                 rgba(0, 0, 0, alpha as u8),
             )
@@ -1415,10 +1415,21 @@ unsafe fn draw_panel(
         )
     };
 
-    let strip_h = (2.0 * lh).min(h);
     let prompt = unsafe { *g.slots.add(SLOT_PROMPT * off::MESSAGE_SLOT_STRIDE) };
     let sticky = unsafe { *g.slots.add(SLOT_STICKY * off::MESSAGE_SLOT_STRIDE) };
     let strip_has_content = prompt != 0 || sticky != 0;
+    // The rows the strip's text uses (one for a lone notice), up to the two the game allows.
+    let strip_lines = [(prompt, SLOT_PROMPT), (sticky, SLOT_STICKY)]
+        .into_iter()
+        .filter(|&(first, _)| first != 0)
+        .map(|(_, slot)| unsafe {
+            let text = g.slots.add(slot * off::MESSAGE_SLOT_STRIDE).cast::<c_char>();
+            let len = CStr::from_ptr(text).to_bytes().len() as i32;
+            (g.count_wrapped)(ctx, text, len, w).max(1)
+        })
+        .sum::<i32>()
+        .clamp(1, 2);
+    let strip_h = (2.0 * lh).min(h);
 
     let (lines, bg, fade) = with_state(|st| {
         (
@@ -1473,7 +1484,7 @@ unsafe fn draw_panel(
         unsafe {
             (g.override_rect)(ctx, x, top, w, history_h);
             if (g.begin_group)(ctx, c"messages_history".as_ptr(), 0) != 0 {
-                fill_group_background(g, ctx, bg);
+                fill_group_background(g, ctx, bg, f32::MAX);
                 draw_backlog_rows(g, ctx, w, lh);
                 draw_scroll_indicator(g, ctx, INDICATOR_WIDTH);
                 (g.end_group)(ctx);
@@ -1486,7 +1497,9 @@ unsafe fn draw_panel(
             (g.override_rect)(ctx, x, top + history_h, w, strip_h);
             if (g.begin_group)(ctx, c"messages".as_ptr(), 0x20) != 0 {
                 (g.space_begin)(ctx, 1, 0.0, 1000);
-                fill_group_background(g, ctx, bg);
+                // The game draws a lone notice in the strip's top row, so the shadow only covers
+                // the rows in use.
+                fill_group_background(g, ctx, bg, strip_lines as f32 * lh);
                 if !draw_message_strip(g, ctx, line_height) {
                     // No region to draw into this frame; nothing to do.
                 }
