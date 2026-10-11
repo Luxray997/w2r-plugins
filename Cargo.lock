@@ -506,6 +506,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "w2r-countdown-sound"
+version = "0.1.0"
+dependencies = [
+ "w2r-abi",
+]
+
+[[package]]
 name = "w2r-formats"
 version = "0.1.0"
 source = "git+https://github.com/hastinbe/w2rpm?rev=16ff8ba0d8d63c24f4301781b8b8c797979e819c#16ff8ba0d8d63c24f4301781b8b8c797979e819c"
