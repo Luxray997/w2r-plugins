@@ -35,7 +35,7 @@ jobs:
       - name: Tool tests
         run: cargo test --locked -p w2r-publish
       - name: Build every plugin (32-bit, like the game)
-        run: cargo build --locked --release --target i686-pc-windows-msvc -p hello-example -p w2r-chat
+        run: cargo build --locked --release --target i686-pc-windows-msvc --workspace --exclude w2r-publish
       - name: Plugin tests
         run: cargo test --locked -p w2r-chat
       - name: Package (dry run)

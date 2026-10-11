@@ -43,7 +43,7 @@ jobs:
       - name: Check, build, package
         run: |
           cargo run --locked -q -p w2r-publish -- check
-          cargo build --locked --release --target i686-pc-windows-msvc -p hello-example -p w2r-chat
+          cargo build --locked --release --target i686-pc-windows-msvc --workspace --exclude w2r-publish
           cargo run --locked -q -p w2r-publish -- package \
             --target-dir target/i686-pc-windows-msvc/release --out out/packages
 
