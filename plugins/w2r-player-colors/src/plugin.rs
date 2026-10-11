@@ -46,10 +46,41 @@ const DIVIDER_COLOUR: u32 = 0xc8b4_b4b4;
 
 type FoodCellFn = unsafe extern "C" fn(f32, f32, f32, f32, i32, i32, i32, i32, i32);
 type FillRectFn = unsafe extern "C" fn(*mut c_void, f32, f32, f32, f32, f32, u32);
+type WidgetTextFn = unsafe extern "C" fn(
+    *mut c_void,
+    f32,
+    f32,
+    f32,
+    f32,
+    *const core::ffi::c_char,
+    i32,
+    *const c_void,
+    u32,
+    *const c_void,
+);
+type TextWidthFn = unsafe extern "C" fn(*mut c_void, f32, *const core::ffi::c_char, i32) -> f32;
+
+/// UI context: mouse position (floats), font, text padding, text style colours.
+const CTX_MOUSE_X: usize = 0x1bc;
+const CTX_MOUSE_Y: usize = 0x1c0;
+const CTX_FONT: usize = 0x1e0;
+const CTX_TEXT_EXTRA0: usize = 0x210;
+const CTX_TEXT_EXTRA1: usize = 0x21c;
+const CTX_TEXT_EXTRA2: usize = 0x220;
+const CTX_WINDOW_BACKGROUND: usize = 0x1f9c;
+const USER_FONT_HEIGHT: usize = 0x04;
+const USER_FONT_WIDTH: usize = 0x08;
+/// Bytes per player in the game's name table.
+const NAME_STRIDE: usize = 0x38;
+const TIP_PAD: f32 = 4.0;
+const TIP_BACK: u32 = 0xf010_1010;
+const TIP_TEXT: u32 = 0xffff_ffff;
 
 struct Game {
     hud_ctx: *const *mut c_void,
     fill_rect: FillRectFn,
+    widget_text: WidgetTextFn,
+    player_names: *const u8,
     colour_rgba: *const f32,
     colour_reorder: *const u8,
     local_player: *const u8,
@@ -107,6 +138,8 @@ fn resolve() -> Result<Game, &'static str> {
     Ok(Game {
         hud_ctx: at("HudCtx")? as *const *mut c_void,
         fill_rect: unsafe { core::mem::transmute::<usize, FillRectFn>(at("NkFillRect")?) },
+        widget_text: unsafe { core::mem::transmute::<usize, WidgetTextFn>(at("NkWidgetText")?) },
+        player_names: at("PlayerNames")? as *const u8,
         colour_rgba: at("TeamColourRgba")? as *const f32,
         colour_reorder: at("TeamColourReorder")? as *const u8,
         local_player: at("LocalPlayer")? as *const u8,
@@ -213,10 +246,22 @@ unsafe fn draw(game: &Game, x: f32) {
         let top = panel_y + ((panel_h - model::BOX) / 2.0).floor();
         let me = *game.local_player;
         let fill = game.fill_rect;
+        let mouse = (
+            ctx.cast::<u8>().add(CTX_MOUSE_X).cast::<f32>().read_unaligned(),
+            ctx.cast::<u8>().add(CTX_MOUSE_Y).cast::<f32>().read_unaligned(),
+        );
+        let mut hovered = None;
         for (item, at) in items.iter().zip(offsets) {
             let bx = left + at;
             match *item {
                 Item::Box(player) => {
+                    if mouse.0 >= bx
+                        && mouse.0 < bx + model::BOX
+                        && mouse.1 >= top
+                        && mouse.1 < top + model::BOX
+                    {
+                        hovered = Some((player, bx));
+                    }
                     let border = if player == me { BORDER_SELF } else { BORDER };
                     let outer = model::BOX + 2.0;
                     fill(canvas, bx - 1.0, top - 1.0, outer, outer, 0.0, border);
@@ -228,6 +273,63 @@ unsafe fn draw(game: &Game, x: f32) {
                 }
             }
         }
+        if let Some((player, _)) = hovered {
+            // Past the bar's right end, inside the top bar's own strip (it clips anything below).
+            let tip_x = if left + width + 120.0 <= panel_x + panel_w { left + width + 8.0 } else { left - 128.0 };
+            draw_tip(game, ctx.cast::<u8>(), canvas, player, tip_x, panel_y, panel_h);
+        }
+    }
+}
+
+/// The name shown for a player: the game's name table entry, or a stand-in when it is empty.
+fn name_of(game: &Game, player: u8) -> String {
+    let slot = unsafe {
+        core::slice::from_raw_parts(game.player_names.add(player as usize * NAME_STRIDE), NAME_STRIDE)
+    };
+    let len = slot.iter().position(|&b| b == 0).unwrap_or(0);
+    if len == 0 {
+        let computer = unsafe { *game.owner.add(player as usize) } == OWNER_COMPUTER;
+        return if computer { format!("Computer {}", player + 1) } else { format!("Player {}", player + 1) };
+    }
+    String::from_utf8_lossy(&slot[..len]).into_owned()
+}
+
+/// A small label with the player's name, left edge at `x`, top at `y`, nudged left to stay on screen.
+unsafe fn draw_tip(game: &Game, ctx: *const u8, canvas: *mut c_void, player: u8, x: f32, y: f32, bar_h: f32) {
+    unsafe {
+        let font = ctx.add(CTX_FONT).cast::<*const u8>().read_unaligned();
+        if font.is_null() {
+            return;
+        }
+        let userdata = font.cast::<*mut c_void>().read_unaligned();
+        let font_h = font.add(USER_FONT_HEIGHT).cast::<f32>().read_unaligned();
+        let Some(width) = font.add(USER_FONT_WIDTH).cast::<Option<TextWidthFn>>().read_unaligned()
+        else {
+            return;
+        };
+        let name = name_of(game, player);
+        let text_w = width(userdata, font_h, name.as_ptr().cast(), name.len() as i32);
+        let (w, h) = (text_w + TIP_PAD * 2.0, bar_h);
+        let x = x.max(0.0);
+        (game.fill_rect)(canvas, x, y, w, h, 2.0, TIP_BACK);
+        let mut style = [0u32; 7];
+        style[2] = ctx.add(CTX_WINDOW_BACKGROUND).cast::<u32>().read_unaligned();
+        style[3] = TIP_TEXT;
+        style[4] = ctx.add(CTX_TEXT_EXTRA0).cast::<u32>().read_unaligned();
+        style[5] = ctx.add(CTX_TEXT_EXTRA1).cast::<u32>().read_unaligned();
+        style[6] = ctx.add(CTX_TEXT_EXTRA2).cast::<u32>().read_unaligned();
+        (game.widget_text)(
+            canvas,
+            x + TIP_PAD,
+            y + ((bar_h - font_h) / 2.0).floor(),
+            text_w + 1.0,
+            font_h,
+            name.as_ptr().cast(),
+            name.len() as i32,
+            style.as_ptr().cast(),
+            0x11,
+            font.cast(),
+        );
     }
 }
 
