@@ -4,7 +4,7 @@
 //!
 //! - `HudFoodCell`: after the original, writes the observers' alliance row and vision bits (the
 //!   game resets them at match start and when it eliminates a player, so it is done every frame).
-//! - `CheckMatchEnd` and `PlayerHasAssets`: an observer owns nothing, so the game would end the
+//! - `PlayerHasAssets`: an observer owns nothing, so the game would end the
 //!   match for them at once. The first assets check inside a match-end check, for the local
 //!   observer, is answered "yes". Later checks in the same pass are not, so the observer is never
 //!   counted as a survivor and the match still ends for the players.
@@ -12,7 +12,7 @@
 
 use core::ffi::c_void;
 use std::panic::{AssertUnwindSafe, catch_unwind};
-use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU8, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicPtr, AtomicU8, AtomicUsize, Ordering};
 use std::sync::{Mutex, OnceLock};
 
 use w2r_abi::*;
@@ -26,7 +26,6 @@ const LOBBY_SLOT_TEAM: usize = 0x0a;
 const OWNER_HUMAN: u8 = 0;
 
 type FoodCellFn = unsafe extern "C" fn(f32, f32, f32, f32, i32, i32, i32, i32, i32);
-type CheckEndFn = unsafe extern "C" fn();
 type AssetsFn = unsafe extern "C" fn(i32) -> u8;
 type EliminateFn = unsafe extern "C" fn(i32);
 
@@ -46,13 +45,10 @@ static GAME: OnceLock<Game> = OnceLock::new();
 static HOST: AtomicPtr<W2rHost> = AtomicPtr::new(core::ptr::null_mut());
 static HOOKS: Mutex<Vec<W2rHandle>> = Mutex::new(Vec::new());
 static ORIG_FOOD: AtomicUsize = AtomicUsize::new(0);
-static ORIG_CHECK: AtomicUsize = AtomicUsize::new(0);
 static ORIG_ASSETS: AtomicUsize = AtomicUsize::new(0);
 static ORIG_ELIMINATE: AtomicUsize = AtomicUsize::new(0);
 /// Bit mask of the players who observe this match, read when it starts.
 static OBSERVERS: AtomicU8 = AtomicU8::new(0);
-/// Set around the original match-end check while the local player observes.
-static TOP_CHECK: AtomicBool = AtomicBool::new(false);
 
 fn host() -> Option<&'static W2rHost> {
     unsafe { HOST.load(Ordering::Acquire).as_ref() }
@@ -149,27 +145,33 @@ unsafe extern "C" fn food_cell_detour(
     }));
 }
 
-unsafe extern "C" fn check_end_detour() {
-    let local = catch_unwind(AssertUnwindSafe(|| GAME.get().is_some_and(local_observes)))
-        .unwrap_or(false);
-    TOP_CHECK.store(local, Ordering::Relaxed);
-    let original = ORIG_CHECK.load(Ordering::Acquire);
-    if original != 0 {
-        let original: CheckEndFn = unsafe { core::mem::transmute(original) };
-        unsafe { original() };
-    }
-    TOP_CHECK.store(false, Ordering::Relaxed);
+/// Return address of the call in the match-end check that asks about the local player (the call
+/// at 0x4f49a4); the loop over all players further on uses other call sites.
+const LOCAL_ASSETS_RETURN: usize = 0x004f_49a9;
+
+/// Naked so the caller's return address can be handed to `assets_inner`: the host already hooks
+/// `CheckMatchEnd` itself, so the pass is recognised by its call site instead.
+#[unsafe(naked)]
+unsafe extern "C" fn assets_detour(_player: i32) -> u8 {
+    core::arch::naked_asm!(
+        "push dword ptr [esp]",
+        "push dword ptr [esp + 8]",
+        "call {inner}",
+        "add esp, 8",
+        "ret",
+        inner = sym assets_inner,
+    );
 }
 
-unsafe extern "C" fn assets_detour(player: i32) -> u8 {
-    // The first question of a check pass is about the local player; only that one is answered.
-    if TOP_CHECK.swap(false, Ordering::Relaxed) {
-        let local = catch_unwind(AssertUnwindSafe(|| {
-            GAME.get().map(|g| unsafe { *g.local_player } as i32)
+unsafe extern "C" fn assets_inner(player: i32, ret: usize) -> u8 {
+    if ret == LOCAL_ASSETS_RETURN {
+        let answer = catch_unwind(AssertUnwindSafe(|| {
+            GAME.get().is_some_and(|g| {
+                local_observes(g) && unsafe { *g.local_player } as i32 == player
+            })
         }))
-        .ok()
-        .flatten();
-        if local == Some(player) {
+        .unwrap_or(false);
+        if answer {
             return 1;
         }
     }
@@ -249,7 +251,6 @@ unsafe extern "C" fn on_load(host: *const W2rHost) -> W2rStatus {
         }
     }
     let ok = install(h, "HudFoodCell", food_cell_detour as *mut c_void, &ORIG_FOOD)
-        && install(h, "CheckMatchEnd", check_end_detour as *mut c_void, &ORIG_CHECK)
         && install(h, "PlayerHasAssets", assets_detour as *mut c_void, &ORIG_ASSETS)
         && install(h, "EliminatePlayer", eliminate_detour as *mut c_void, &ORIG_ELIMINATE);
     if !ok {

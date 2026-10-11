@@ -16,12 +16,12 @@ overlay, no observer-only chat, and the match-end screen shows a defeat for the 
 - The host adds "OBS" (team 9) to the lobby team list when this plugin is loaded.
 - Each frame the plugin gives every observer an ally row and every player's vision, in the game's
   own alliance and vision tables.
-- `CheckMatchEnd`, `PlayerHasAssets` and `EliminatePlayer` are hooked so an observer with no units
+- `PlayerHasAssets` (recognised by its call site in the match-end check, since the host hooks `CheckMatchEnd` itself) and `EliminatePlayer` are hooked so an observer with no units
   is not thrown out as defeated; see `src/plugin.rs`.
 
 ## Capabilities
 
 - `game.read`: the symbols above.
-- `hooks.raw`: four detours (`HudFoodCell`, `CheckMatchEnd`, `PlayerHasAssets`, `EliminatePlayer`).
+- `hooks.raw`: three detours (`HudFoodCell`, `PlayerHasAssets`, `EliminatePlayer`).
   Each calls the original except `EliminatePlayer`, which is skipped for an observer only.
 - `affects_simulation: true`.
