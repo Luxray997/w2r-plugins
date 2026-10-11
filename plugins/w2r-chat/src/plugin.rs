@@ -206,6 +206,7 @@ struct Game {
     networked_match: *const u8,
     // slices 3 and 4: who is who
     colour_reorder: *const u8,
+    colour_rgba: *const f32,
     player_owner: *const u8,
     diplomacy: *const u8,
     lobby_slots: *const u8,
@@ -220,6 +221,19 @@ static GAME: OnceLock<Game> = OnceLock::new();
 
 fn game() -> Option<&'static Game> {
     GAME.get()
+}
+
+/// A name colour, with the black player's taken from the game's colour table so a recolour
+/// (w2r-black-recolor) shows in chat; the stock table value keeps the readable grey.
+fn name_colour_now(index: u8, fallback: u32) -> u32 {
+    if index == model::BLACK
+        && let Some(g) = game()
+    {
+        let c = unsafe { g.colour_rgba.add(index as usize * 4) };
+        let rgb = [unsafe { *c }, unsafe { *c.add(1) }, unsafe { *c.add(2) }];
+        return model::black_name(rgb);
+    }
+    model::name_colour(index, fallback)
 }
 
 // ---- host access ---------------------------------------------------------------------------
@@ -302,6 +316,7 @@ fn resolve() -> Result<Game, &'static str> {
         pauses_remaining: lookup("PausesRemaining").ok_or("PausesRemaining")? as *const u8,
         networked_match: lookup("NetworkedMatch").ok_or("NetworkedMatch")? as *const u8,
         colour_reorder: lookup("TeamColourReorder").ok_or("TeamColourReorder")? as *const u8,
+        colour_rgba: lookup("TeamColourRgba").ok_or("TeamColourRgba")? as *const f32,
         player_owner: lookup("PlayerOwner").ok_or("PlayerOwner")? as *const u8,
         diplomacy: lookup("DiplomacyStance").ok_or("DiplomacyStance")? as *const u8,
         lobby_slots: lookup("MpLobbySlots").ok_or("MpLobbySlots")? as *const u8,
@@ -649,7 +664,7 @@ unsafe fn draw_line(g: &Game, ctx: *mut c_void, m: &Message, colour: u32, look: 
                 }
                 piece(at, from, text_fg, &mut style);
                 let name_fg = faded(
-                    apply_colour_factor(model::name_colour(n.colour, colour), factor),
+                    apply_colour_factor(name_colour_now(n.colour, colour), factor),
                     look.alpha,
                 );
                 piece(from, to, name_fg, &mut style);

@@ -547,6 +547,17 @@ pub const PLAYER_COLOURS: [u32; PLAYER_COUNT] = [
     rgba(232, 212, 48, 255),
 ];
 
+/// The black player's name colour from the game's table entry (0..1 floats): the stock value keeps
+/// the readable grey, anything else (a recolour) is drawn as is.
+pub fn black_name(rgb: [f32; 3]) -> u32 {
+    let b = rgb.map(|c| (c.clamp(0.0, 1.0) * 255.0).round() as u8);
+    if b == [32, 32, 32] {
+        BLACK_NAME
+    } else {
+        rgba(b[0], b[1], b[2], 255)
+    }
+}
+
 /// The colour a name is drawn in; an out-of-range index falls back to `fallback`.
 pub fn name_colour(index: u8, fallback: u32) -> u32 {
     match index {
@@ -963,6 +974,13 @@ mod tests {
             .unwrap()
             .with_names(vec![span(0, 3, 0), span(5, 9, 1), span(2, 0, 2)]);
         assert_eq!(m.names, vec![span(0, 3, 0)]);
+    }
+
+    #[test]
+    fn black_name_follows_a_recolour() {
+        assert_eq!(black_name([32.0 / 255.0; 3]), BLACK_NAME);
+        let pink = [0xe8 as f32 / 255.0, 0x7b as f32 / 255.0, 0xdd as f32 / 255.0];
+        assert_eq!(black_name(pink), rgba(0xe8, 0x7b, 0xdd, 255));
     }
 
     #[test]
