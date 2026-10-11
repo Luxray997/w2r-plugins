@@ -10,7 +10,7 @@ A plugin is a folder `plugins/<id>/` with:
 | `README.md` | recommended | packaged and shown to users |
 | `LICENSE` | if you use others' code | packaged; keep the original notices |
 
-Start from `plugins/hello-example`.
+Start from an existing plugin, such as `plugins/w2r-random-map` (no capabilities needed).
 
 ## Rules
 
