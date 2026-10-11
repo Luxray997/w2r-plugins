@@ -69,7 +69,9 @@ jobs:
             name=$(basename "$z" .zip)
             tag="pkg-$name"
             if gh release view "$tag" >/dev/null 2>&1; then
-              echo "$tag exists, leaving it alone"
+              # Zips are not byte-reproducible, so index the published asset, not this build's copy.
+              echo "$tag exists, leaving it alone and indexing the published zip"
+              gh release download "$tag" --pattern "$name.zip" --dir out/packages --clobber
             else
               gh release create "$tag" "$z" --latest=false --title "$name" --notes "Package for $name."
             fi
