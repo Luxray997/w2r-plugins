@@ -22,6 +22,6 @@ overlay, no observer-only chat, and the match-end screen shows a defeat for the 
 ## Capabilities
 
 - `game.read`: the symbols above.
-- `hooks.raw`: three detours (`HudFoodCell`, `PlayerHasAssets`, `EliminatePlayer`).
+- `hooks.raw`: three detours (`HudResourceCell`, `PlayerHasAssets`, `EliminatePlayer`).
   Each calls the original except `EliminatePlayer`, which is skipped for an observer only.
 - `affects_simulation: true`.

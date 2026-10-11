@@ -2,7 +2,7 @@
 //! guard (docs/abi.md), so each one catches panics and always reaches the original unless it is
 //! deliberately skipping it.
 //!
-//! - `HudFoodCell`: after the original, writes the observers' alliance row and vision bits (the
+//! - `HudResourceCell` (the top bar's gold, lumber and oil cells; `HudFoodCell` and `HudBeginFrame` belong to other plugins, and a function takes one hook): after the original, writes the observers' alliance row and vision bits (the
 //!   game resets them at match start and when it eliminates a player, so it is done every frame).
 //! - `PlayerHasAssets`: an observer owns nothing, so the game would end the
 //!   match for them at once. The first assets check inside a match-end check, for the local
@@ -250,7 +250,7 @@ unsafe extern "C" fn on_load(host: *const W2rHost) -> W2rStatus {
             return W2R_E_STATE;
         }
     }
-    let ok = install(h, "HudFoodCell", food_cell_detour as *mut c_void, &ORIG_FOOD)
+    let ok = install(h, "HudResourceCell", food_cell_detour as *mut c_void, &ORIG_FOOD)
         && install(h, "PlayerHasAssets", assets_detour as *mut c_void, &ORIG_ASSETS)
         && install(h, "EliminatePlayer", eliminate_detour as *mut c_void, &ORIG_ELIMINATE);
     if !ok {
