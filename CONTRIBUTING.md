@@ -51,3 +51,11 @@ w2rpm-lib = { path = "../w2rpm/crates/w2rpm-lib" }
 ```
 
 When the ABI changes, bump the `rev` in the root `Cargo.toml` in its own PR.
+
+With the patch active, cargo writes a `Cargo.lock` that CI (which has no patch) rejects under
+`--locked`. Run `tools/sync-lock.sh` after changing dependencies or the `rev`; it regenerates the
+lock with the patch moved aside. To check automatically before each commit, install the hook:
+
+```sh
+printf '#!/usr/bin/env bash\ngit diff --cached --name-only | grep -qE "(^|/)Cargo\.(toml|lock)$" && exec tools/sync-lock.sh --check\nexit 0\n' > .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+```
