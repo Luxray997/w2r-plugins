@@ -49,7 +49,7 @@ Rebalances teams automatically based on the lobby format (2v2, 3v3, 4v4, and so 
 - **Capabilities:** `game.read`, `chat.write`; moving slots may need `hooks.raw`. If it changes
   anything that must match between players, set `affects_simulation: true`.
 
-## Observer system
+## Observer system (WIP)
 
 An observer mode in the style of war2combat's, for spectating and casting games.
 
@@ -67,31 +67,6 @@ An observer mode in the style of war2combat's, for spectating and casting games.
   - Making sure observers can never influence the simulation or be used to ghost.
 - **Capabilities:** `game.read`, `hooks.raw` (most likely). Needs the two-approval review, with
   every hook documented.
-
-## Replays
-
-Records games and plays them back, similar to the replay plugin for War2Combat.
-
-- **Recording:** capture every game automatically (or opt in per game) and save it to disk with
-  metadata: map, players, teams, settings, date, duration, and result.
-- **Approach:** most likely record the initial settings plus the stream of player commands, then
-  re-run the simulation on playback. This keeps files small, but only works if the simulation is
-  deterministic.
-- **Playback:** pause, resume, speed up or slow down, and jump to a point in time. Jumping needs
-  periodic snapshots or a re-simulation from the start.
-- **Replay browser:** list saved replays with filters by map, player, or date, and a `!replay
-  play <name>` command.
-- **Version handling:** tag each replay with the game version and plugin version so mismatches are
-  detected instead of desyncing silently.
-- **Pairs well with:** the *Observer system* (view a replay with the same free camera and stats
-  overlay) and the *Ladder* (attach replays to rated games for disputes).
-- **Open questions:**
-  - How War2Combat's replay plugin captures and replays, and whether that approach carries over.
-  - Whether the game is deterministic enough to replay from commands alone, or if state has to be
-    recorded directly.
-  - Sharing replays between players, and how to prevent a replay file from being abused.
-- **Capabilities:** `game.read`; playback needs to drive the game, so likely `hooks.raw`. Needs the
-  two-approval review, with every hook documented.
 
 ## Resource sharing
 
@@ -121,4 +96,8 @@ Lets teammates in a team game send resources to each other.
 
 Add new ideas below as they come up. A line or two is enough; flesh out when one is picked up.
 
-- 
+- ability for the host to ban a player
+- in-game timer
+- in-game apm display
+- Check which battle.net features Stacraft Remastered has that we could potentially port into Warcraft 2 Remastered
+- A system to report players for hacking. It should be part of the replay system as the replay itself is the proof. It should upload the proof somewhere for the community to validate. Once confirmed, the system records their battle.net ID into the database. We could use this data to ban, restrict, or show a notice in the game lobby when that player is in the lobby
