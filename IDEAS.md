@@ -29,26 +29,6 @@ the game ends.
 - **Capabilities:** `game.read`, `chat.read`, `chat.write`, `net.send` (to reach the ladder
   service).
 
-## Auto-balance teams
-
-Rebalances teams automatically based on the lobby format (2v2, 3v3, 4v4, and so on).
-
-- **Format detection:** infer the format from the player count and slots, and re-evaluate when
-  players join, leave, or switch slots.
-- **Balancing:** split players into teams that minimize the rating difference (ratings from the
-  ladder plugin, or a simple skill estimate if none exists). With small lobbies, brute-force all
-  splits; it is cheap.
-- **Constraints:** keep pre-made parties together, respect slot or color preferences where
-  possible, and handle odd counts or uneven formats gracefully.
-- **Host control:** announce the proposed teams in chat and let the host accept or veto, with a
-  `!balance` command to re-run on demand and `!lock` to stop further adjustment.
-- **Open questions:**
-  - Whether the plugin can move players between slots itself, or only suggest. This decides
-    whether it needs `hooks.raw`.
-  - A rating source when the ladder plugin isn't installed.
-- **Capabilities:** `game.read`, `chat.write`; moving slots may need `hooks.raw`. If it changes
-  anything that must match between players, set `affects_simulation: true`.
-
 ## Observer system (WIP)
 
 An observer mode in the style of war2combat's, for spectating and casting games.
@@ -97,7 +77,10 @@ Lets teammates in a team game send resources to each other.
 Add new ideas below as they come up. A line or two is enough; flesh out when one is picked up.
 
 - ability for the host to ban a player
+- colorize the "<name> Joined" and "<name> Left" messages in the in-game lobby. maybe make them gray or yellow
 - in-game timer
-- in-game apm display
+- in-game apm display like SC (Actions Per Minute Tracking, that has "Display APM In Game", and "Alert when APM falls below _60_ input box", "Color Text" checkbox and "Play Sound" checkbox")
+- Daily or weekly challenge. One seeded random map with a fixed modifier, such as “no towers” or “double gold”. The stats service ranks completion time, and everyone plays the same thing.
+- a shared minimap ping
 - Check which battle.net features Stacraft Remastered has that we could potentially port into Warcraft 2 Remastered
 - A system to report players for hacking. It should be part of the replay system as the replay itself is the proof. It should upload the proof somewhere for the community to validate. Once confirmed, the system records their battle.net ID into the database. We could use this data to ban, restrict, or show a notice in the game lobby when that player is in the lobby
