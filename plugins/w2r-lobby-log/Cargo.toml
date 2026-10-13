@@ -1,0 +1,18 @@
+[package]
+name = "w2r-lobby-log"
+version = "0.2.4"
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+description = "Research: logs what the game exchanges with Battle.net's game master service (lobby list, advertise, start, end)"
+
+[lib]
+name = "w2r_lobby_log"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+w2r-abi.workspace = true
+
+[lints.clippy]
+# Entry points are called by the host; the ABI header documents the contract.
+missing_safety_doc = "allow"

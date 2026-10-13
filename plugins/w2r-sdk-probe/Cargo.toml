@@ -1,0 +1,18 @@
+[package]
+name = "w2r-sdk-probe"
+version = "0.1.1"
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+description = "Research probe: checks the game's ClientSdk local web server object and can start it on request"
+
+[lib]
+name = "w2r_sdk_probe"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+w2r-abi.workspace = true
+
+[lints.clippy]
+# Entry points are called by the host; the ABI header documents the contract.
+missing_safety_doc = "allow"
