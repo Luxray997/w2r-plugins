@@ -12,7 +12,8 @@ pub struct Plugin {
     pub manifest_raw: Vec<u8>,
 }
 
-/// Every folder under `plugins/` must be a plugin: a valid `plugin.json` whose id is the folder
+/// Every folder under `plugins/` must be a plugin (except the developer-only ones, which are
+/// neither checked nor packaged, see [`is_dev_only`]): a valid `plugin.json` whose id is the folder
 /// name and whose version is the crate version, so a release cannot ship a stale manifest.
 pub fn load(root: &Path) -> Result<Vec<Plugin>> {
     let dir = root.join("plugins");
@@ -26,6 +27,10 @@ pub fn load(root: &Path) -> Result<Vec<Plugin>> {
     let mut out = Vec::new();
     for name in names {
         let pdir = dir.join(&name);
+        if fs::read_to_string(pdir.join("Cargo.toml")).is_ok_and(|c| is_dev_only(&c)) {
+            eprintln!("{name}: developer-only, not published");
+            continue;
+        }
         let raw =
             fs::read(pdir.join("plugin.json")).map_err(|e| format!("{name}: plugin.json: {e}"))?;
         let m = manifest::validate(&raw).map_err(|r| format!("{name}: plugin.json: {r}"))?;
@@ -59,6 +64,25 @@ pub fn load(root: &Path) -> Result<Vec<Plugin>> {
     Ok(out)
 }
 
+/// A research or debugging plugin that stays in the repository for developers (built in the
+/// workspace, installed by `install_dev.ps1 -WithAllPlugins`) but is never packaged or listed in
+/// the public index: `dev_only = true` under `[package.metadata.w2r]` in its Cargo.toml.
+fn is_dev_only(cargo: &str) -> bool {
+    let mut in_section = false;
+    for line in cargo.lines() {
+        let line = line.trim();
+        if line.starts_with('[') {
+            in_section = line == "[package.metadata.w2r]";
+        } else if in_section {
+            let compact: String = line.split_whitespace().collect();
+            if compact == "dev_only=true" {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 /// `version = "x"` inside `[package]`; enough for a manifest we require to be plain.
 fn package_version(cargo: &str) -> Option<String> {
     let mut in_package = false;
@@ -76,7 +100,26 @@ fn package_version(cargo: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::package_version;
+    use super::{is_dev_only, package_version};
+
+    #[test]
+    fn dev_only_is_read_from_the_w2r_metadata_table_only() {
+        let t = "[package]
+name = \"x\"
+[package.metadata.w2r]
+dev_only = true
+";
+        assert!(is_dev_only(t));
+        assert!(!is_dev_only("[package]
+name = \"x\"
+"));
+        assert!(!is_dev_only("[package.metadata.w2r]
+dev_only = false
+"));
+        assert!(!is_dev_only("[dependencies]
+dev_only = true
+"));
+    }
 
     #[test]
     fn reads_the_package_version_only() {

@@ -105,7 +105,6 @@ unsafe impl Sync for Game {}
 struct State {
     toggle: Toggle,
     size: i32,
-    open_at_start: bool,
     /// The map chosen at match start, and its picture once built.
     path: Option<String>,
     preview: Option<Preview>,
@@ -427,7 +426,6 @@ unsafe extern "C" fn frame_detour() {
 fn load_settings() {
     with_state(|st| {
         st.size = model::clamp_size(setting("size", model::SIZE_DEFAULT as i64));
-        st.open_at_start = setting("open_at_start", 0) != 0;
     });
 }
 
@@ -447,7 +445,7 @@ unsafe extern "C" fn on_event(event: *const W2rEvent) {
                     st.preview = None;
                     st.built = false;
                     st.uploaded = false;
-                    st.toggle = Toggle::new(st.open_at_start);
+                    st.toggle = Toggle::new(false);
                 });
             }));
         }
@@ -460,16 +458,13 @@ unsafe extern "C" fn on_ui(ui: *const W2rUi) {
     let Some(ui) = (unsafe { ui.as_ref() }) else {
         return;
     };
-    let (mut size, mut open) = with_state(|st| (st.size, st.open_at_start as i32));
+    let mut size = with_state(|st| st.size);
     unsafe {
         (ui.label)(ui.ctx, s("\\ opens and closes the map preview during a match."));
         if (ui.slider_int)(ui.ctx, s("Picture size"), &mut size, model::SIZE_MIN, model::SIZE_MAX)
             != 0
         {
             save_setting("size", size as i64);
-        }
-        if (ui.checkbox)(ui.ctx, s("Open at match start"), &mut open) != 0 {
-            save_setting("open_at_start", open as i64);
         }
     }
 }
