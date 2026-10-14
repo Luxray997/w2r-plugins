@@ -15,6 +15,12 @@ pub fn observers(teams: &[u8; MAX_PLAYERS], is_human: impl Fn(usize) -> bool) ->
         .fold(0, |mask, i| mask | 1 << i)
 }
 
+/// Whether the map spawn of a unit for `owner` is skipped: during the map spawn an observer is
+/// given nothing, so it owns no base and never counts as a survivor on any machine.
+pub fn skips_spawn(spawning: bool, owner: usize, observers: u8) -> bool {
+    spawning && owner < MAX_PLAYERS && observers >> owner & 1 == 1
+}
+
 /// Gives every observer an ally row (one-sided: others do not treat the observer as an ally) and
 /// every player's vision. Returns whether anything changed.
 pub fn apply(stance: &mut [u8; MAX_PLAYERS * STANCE_ROW], masks: &mut [u8; MAX_PLAYERS], observers: u8) -> bool {
@@ -64,6 +70,14 @@ mod tests {
         }
         assert_eq!(masks[2], 1 << 2, "the observer shares no vision");
         assert!(!apply(&mut stance, &mut masks, 1 << 2), "second pass changes nothing");
+    }
+
+    #[test]
+    fn only_observers_lose_their_spawn() {
+        assert!(skips_spawn(true, 2, 1 << 2));
+        assert!(!skips_spawn(false, 2, 1 << 2), "units trained later are not skipped");
+        assert!(!skips_spawn(true, 1, 1 << 2));
+        assert!(!skips_spawn(true, 15, 0xff), "neutral owner");
     }
 
     #[test]

@@ -77,10 +77,6 @@ Lets teammates in a team game send resources to each other.
 Add new ideas below as they come up. A line or two is enough; flesh out when one is picked up.
 
 - ability for the host to ban a player
-- colorize the "<name> Joined" and "<name> Left" messages in the in-game lobby. maybe make them gray or yellow
 - in-game timer
-- in-game apm display like SC (Actions Per Minute Tracking, that has "Display APM In Game", and "Alert when APM falls below _60_ input box", "Color Text" checkbox and "Play Sound" checkbox")
 - Daily or weekly challenge. One seeded random map with a fixed modifier, such as “no towers” or “double gold”. The stats service ranks completion time, and everyone plays the same thing.
-- a shared minimap ping
-- Check which battle.net features Stacraft Remastered has that we could potentially port into Warcraft 2 Remastered
 - A system to report players for hacking. It should be part of the replay system as the replay itself is the proof. It should upload the proof somewhere for the community to validate. Once confirmed, the system records their battle.net ID into the database. We could use this data to ban, restrict, or show a notice in the game lobby when that player is in the lobby

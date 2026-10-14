@@ -9,10 +9,13 @@
 //!   observer, is answered "yes". Later checks in the same pass are not, so the observer is never
 //!   counted as a survivor and the match still ends for the players.
 //! - `EliminatePlayer`: skipped for an observer, which would otherwise lose its vision again.
+//! - `UnitCreate`: during the map spawn nothing is created for an observer (the same on every
+//!   machine, since the observers come from the lobby), so the observer owns no base and its
+//!   starting money is cleared.
 
 use core::ffi::c_void;
 use std::panic::{AssertUnwindSafe, catch_unwind};
-use std::sync::atomic::{AtomicPtr, AtomicU8, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU8, AtomicUsize, Ordering};
 use std::sync::{Mutex, OnceLock};
 
 use w2r_abi::*;
@@ -22,19 +25,30 @@ use crate::model::{self, MAX_PLAYERS};
 /// Lobby slot (wc2r-plus `struct_offsets.h`): stride, and where the team byte sits.
 const LOBBY_SLOT_STRIDE: usize = 0x26;
 const LOBBY_SLOT_TEAM: usize = 0x0a;
-/// `PlayerOwner` value of a human in the match.
-const OWNER_HUMAN: u8 = 0;
+/// Lobby slot kind (`+0x08`) of a human.
+const LOBBY_SLOT_HUMAN: u8 = 0;
+const LOBBY_SLOT_KIND: usize = 0x08;
+/// `PlayerOwner` value of an empty seat.
+const OWNER_EMPTY: u8 = 3;
 
 type FoodCellFn = unsafe extern "C" fn(f32, f32, f32, f32, i32, i32, i32, i32, i32);
 type AssetsFn = unsafe extern "C" fn(i32) -> u8;
 type EliminateFn = unsafe extern "C" fn(i32);
+type CreateFn = unsafe extern "C" fn(u32, u32, u32, u32) -> *mut c_void;
+type StatsRowFn = unsafe extern "C" fn(u32);
+type StatsBuildFn = unsafe extern "C" fn();
 
 struct Game {
     local_player: *const u8,
-    owner: *const u8,
     lobby_slots: *const u8,
     stance: *mut u8,
     masks: *mut u8,
+    map_spawning: *const u32,
+    /// `PlayerOwnerAtStart`: who controlled each slot when the match began, which the end-of-game
+    /// statistics are built from.
+    owner_at_start: *mut u8,
+    /// Gold, lumber and oil: one `u32` per player each.
+    resources: [*mut u32; 3],
 }
 
 // SAFETY: addresses of the game's globals, fixed for the session; used from the main thread.
@@ -47,8 +61,14 @@ static HOOKS: Mutex<Vec<W2rHandle>> = Mutex::new(Vec::new());
 static ORIG_FOOD: AtomicUsize = AtomicUsize::new(0);
 static ORIG_ASSETS: AtomicUsize = AtomicUsize::new(0);
 static ORIG_ELIMINATE: AtomicUsize = AtomicUsize::new(0);
+static ORIG_CREATE: AtomicUsize = AtomicUsize::new(0);
+static ORIG_STATS_ROW: AtomicUsize = AtomicUsize::new(0);
+static ORIG_STATS_BUILD: AtomicUsize = AtomicUsize::new(0);
 /// Bit mask of the players who observe this match, read when it starts.
 static OBSERVERS: AtomicU8 = AtomicU8::new(0);
+/// Whether the observers were read for the map spawn of this match (the spawn can come before the
+/// match-start event, so the first spawn call reads them itself).
+static SPAWN_READ: AtomicBool = AtomicBool::new(false);
 
 fn host() -> Option<&'static W2rHost> {
     unsafe { HOST.load(Ordering::Acquire).as_ref() }
@@ -84,10 +104,16 @@ fn resolve() -> Result<Game, &'static str> {
     let at = |name: &'static str| lookup(name).ok_or(name);
     Ok(Game {
         local_player: at("LocalPlayer")? as *const u8,
-        owner: at("PlayerOwner")? as *const u8,
         lobby_slots: at("MpLobbySlots")? as *const u8,
         stance: at("DiplomacyStance")? as *mut u8,
         masks: at("VisionMasks")? as *mut u8,
+        map_spawning: at("MapSpawning")? as *const u32,
+        owner_at_start: at("PlayerOwnerAtStart")? as *mut u8,
+        resources: [
+            at("PlayerGold")? as *mut u32,
+            at("PlayerLumber")? as *mut u32,
+            at("PlayerOil")? as *mut u32,
+        ],
     })
 }
 
@@ -106,7 +132,19 @@ fn read_observers(game: &Game) -> u8 {
     for (i, team) in teams.iter_mut().enumerate() {
         *team = unsafe { *game.lobby_slots.add(i * LOBBY_SLOT_STRIDE + LOBBY_SLOT_TEAM) };
     }
-    model::observers(&teams, |i| unsafe { *game.owner.add(i) } == OWNER_HUMAN)
+    model::observers(&teams, |i| {
+        let kind = unsafe { *game.lobby_slots.add(i * LOBBY_SLOT_STRIDE + LOBBY_SLOT_KIND) };
+        kind == LOBBY_SLOT_HUMAN
+    })
+}
+
+/// An observer keeps no money, which would show in the top bar and mean nothing.
+fn clear_resources(game: &Game, observers: u8) {
+    for player in (0..MAX_PLAYERS).filter(|&i| observers >> i & 1 == 1) {
+        for table in game.resources {
+            unsafe { table.add(player).write(0) };
+        }
+    }
 }
 
 fn give_vision(game: &Game) {
@@ -114,6 +152,7 @@ fn give_vision(game: &Game) {
     if observers == 0 {
         return;
     }
+    clear_resources(game, observers);
     unsafe {
         let stance = &mut *game.stance.cast::<[u8; MAX_PLAYERS * model::STANCE_ROW]>();
         let masks = &mut *game.masks.cast::<[u8; MAX_PLAYERS]>();
@@ -145,9 +184,36 @@ unsafe extern "C" fn food_cell_detour(
     }));
 }
 
-/// Return address of the call in the match-end check that asks about the local player (the call
-/// at 0x4f49a4); the loop over all players further on uses other call sites.
-const LOCAL_ASSETS_RETURN: usize = 0x004f_49a9;
+/// `UnitCreate` (cdecl, returns the new unit or null). The map spawn calls it for every unit in the
+/// map's start data; for an observer nothing is created, so the observer owns no base. The caller
+/// treats null as "could not create" and moves on. Units made later (training, corpses) are not
+/// affected: only the map spawn sets `MapSpawning`.
+unsafe extern "C" fn create_detour(x: u32, y: u32, kind: u32, owner: u32) -> *mut c_void {
+    let skip = catch_unwind(AssertUnwindSafe(|| {
+        GAME.get().is_some_and(|g| {
+            let spawning = unsafe { g.map_spawning.read() } != 0;
+            if spawning && !SPAWN_READ.swap(true, Ordering::Relaxed) {
+                let mask = read_observers(g);
+                OBSERVERS.store(mask, Ordering::Relaxed);
+                log(W2R_LOG_INFO, &format!("map spawn, observers {mask:#010b}"));
+            }
+            model::skips_spawn(spawning, (owner & 0xff) as usize, OBSERVERS.load(Ordering::Relaxed))
+        })
+    }))
+    .unwrap_or(false);
+    if skip {
+        return core::ptr::null_mut();
+    }
+    let original: CreateFn = unsafe { core::mem::transmute(ORIG_CREATE.load(Ordering::Acquire)) };
+    unsafe { original(x, y, kind, owner) }
+}
+
+/// Where the return address of the match-end check's call about the local player (the call at
+/// 0x4f49a4, returning to 0x4f49a9) lies relative to `PlayerHasAssets` (0x4f4240). The game is
+/// relocated at run time, so the address is worked out from the function's own, relocated one; the
+/// loop over all players further on uses other call sites.
+const LOCAL_ASSETS_RETURN_OFFSET: usize = 0x004f_49a9 - 0x004f_4240;
+static ASSETS_ADDR: AtomicUsize = AtomicUsize::new(0);
 
 /// Naked so the caller's return address can be handed to `assets_inner`: the host already hooks
 /// `CheckMatchEnd` itself, so the pass is recognised by its call site instead.
@@ -164,7 +230,8 @@ unsafe extern "C" fn assets_detour(_player: i32) -> u8 {
 }
 
 unsafe extern "C" fn assets_inner(player: i32, ret: usize) -> u8 {
-    if ret == LOCAL_ASSETS_RETURN {
+    let base = ASSETS_ADDR.load(Ordering::Relaxed);
+    if base != 0 && ret == base + LOCAL_ASSETS_RETURN_OFFSET {
         let answer = catch_unwind(AssertUnwindSafe(|| {
             GAME.get().is_some_and(|g| {
                 local_observes(g) && unsafe { *g.local_player } as i32 == player
@@ -177,6 +244,43 @@ unsafe extern "C" fn assets_inner(player: i32, ret: usize) -> u8 {
     }
     let original: AssetsFn = unsafe { core::mem::transmute(ORIG_ASSETS.load(Ordering::Acquire)) };
     unsafe { original(player) }
+}
+
+/// `StatsAddPlayer` (cdecl): the end-of-game statistics list a person who played or left. An
+/// observer is not one of the players, so no row is made for them.
+unsafe extern "C" fn stats_row_detour(player: u32) {
+    if is_observer((player & 0xff) as usize) {
+        return;
+    }
+    let original: StatsRowFn =
+        unsafe { core::mem::transmute(ORIG_STATS_ROW.load(Ordering::Acquire)) };
+    unsafe { original(player) };
+}
+
+/// `StatsBuild` (cdecl): makes the rows of the computer players "Ally" or "Enemy" relative to the
+/// first person in the slot list, who could be an observer (allied with everybody). While it runs,
+/// the observers are marked as empty seats in the table it reads, so it picks a real player.
+unsafe extern "C" fn stats_build_detour() {
+    let mut saved = [None::<u8>; MAX_PLAYERS];
+    let _ = catch_unwind(AssertUnwindSafe(|| {
+        if let Some(g) = GAME.get() {
+            for (i, slot) in saved.iter_mut().enumerate().filter(|(i, _)| is_observer(*i)) {
+                *slot = Some(unsafe { g.owner_at_start.add(i).replace(OWNER_EMPTY) });
+            }
+        }
+    }));
+    let original: StatsBuildFn =
+        unsafe { core::mem::transmute(ORIG_STATS_BUILD.load(Ordering::Acquire)) };
+    unsafe { original() };
+    let _ = catch_unwind(AssertUnwindSafe(|| {
+        if let Some(g) = GAME.get() {
+            for (i, was) in saved.iter().enumerate() {
+                if let Some(was) = was {
+                    unsafe { g.owner_at_start.add(i).write(*was) };
+                }
+            }
+        }
+    }));
 }
 
 unsafe extern "C" fn eliminate_detour(player: i32) {
@@ -198,10 +302,12 @@ unsafe extern "C" fn on_event(event: *const W2rEvent) {
                 let mask = read_observers(game);
                 OBSERVERS.store(mask, Ordering::Relaxed);
                 log(W2R_LOG_INFO, &format!("match start, observers {mask:#010b}"));
+                SPAWN_READ.store(false, Ordering::Relaxed);
             }
         }));
     } else if event.id == W2R_EVT_LOBBY_ENTER {
         OBSERVERS.store(0, Ordering::Relaxed);
+        SPAWN_READ.store(false, Ordering::Relaxed);
     }
 }
 
@@ -241,6 +347,7 @@ unsafe extern "C" fn on_load(host: *const W2rHost) -> W2rStatus {
         }
     };
     let _ = GAME.set(game);
+    ASSETS_ADDR.store(lookup("PlayerHasAssets").unwrap_or(0), Ordering::Relaxed);
     let Some(h) = self::host() else {
         return W2R_E_STATE;
     };
@@ -252,7 +359,10 @@ unsafe extern "C" fn on_load(host: *const W2rHost) -> W2rStatus {
     }
     let ok = install(h, "HudResourceCell", food_cell_detour as *mut c_void, &ORIG_FOOD)
         && install(h, "PlayerHasAssets", assets_detour as *mut c_void, &ORIG_ASSETS)
-        && install(h, "EliminatePlayer", eliminate_detour as *mut c_void, &ORIG_ELIMINATE);
+        && install(h, "EliminatePlayer", eliminate_detour as *mut c_void, &ORIG_ELIMINATE)
+        && install(h, "UnitCreate", create_detour as *mut c_void, &ORIG_CREATE)
+        && install(h, "StatsAddPlayer", stats_row_detour as *mut c_void, &ORIG_STATS_ROW)
+        && install(h, "StatsBuild", stats_build_detour as *mut c_void, &ORIG_STATS_BUILD);
     if !ok {
         remove_hooks();
         return W2R_E_STATE;
