@@ -3,18 +3,22 @@
 //! through the host's create-screen functions (docs/abi.md, "Create screen" in the w2rpm repo).
 
 use std::panic::{AssertUnwindSafe, catch_unwind};
-use std::sync::atomic::{AtomicPtr, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicPtr, Ordering};
 
 use w2r_abi::*;
 
-use crate::model::{Controller, Maps, Rows, Unavailable, valid_players};
+use crate::model::{Controller, FOLDER_CAP, Maps, Rows, Unavailable, valid_players};
 
 /// The settings key holding the slider value (0 = any number of players).
 const KEY: &str = "players";
+/// The settings key holding the folder limit (empty = every folder).
+const FOLDER_KEY: &str = "folder";
 
 static HOST: AtomicPtr<W2rHost> = AtomicPtr::new(core::ptr::null_mut());
 static STATE: Mutex<Option<Controller>> = Mutex::new(None);
+/// The settings page's edit box: the folder text, NUL-terminated.
+static EDIT: Mutex<[u8; FOLDER_CAP]> = Mutex::new([0; FOLDER_CAP]);
 
 fn host() -> Option<&'static W2rHost> {
     unsafe { HOST.load(Ordering::Acquire).as_ref() }
@@ -36,8 +40,27 @@ fn log(level: u32, msg: &str) {
 /// The host's map index for the length of one callback.
 struct HostMaps(&'static W2rHost);
 
+impl HostMaps {
+    /// Tells the host which folder this callback's map calls are limited to. A host that cannot
+    /// limit them must not be asked for a limited pick, or the limit would be silently ignored.
+    fn limit(&self, folder: &str) -> Result<(), Unavailable> {
+        if self.0.struct_size < W2R_HOST_MAP_FOLDER_SIZE {
+            return if folder.is_empty() {
+                Ok(())
+            } else {
+                Err(Unavailable::Failed)
+            };
+        }
+        match unsafe { (self.0.create_map_folder)(self.0.token, s(folder)) } {
+            W2R_OK => Ok(()),
+            _ => Err(Unavailable::Failed),
+        }
+    }
+}
+
 impl Maps for HostMaps {
-    fn count(&mut self, players: u32) -> Result<u32, Unavailable> {
+    fn count(&mut self, players: u32, folder: &str) -> Result<u32, Unavailable> {
+        self.limit(folder)?;
         let mut count = 0u32;
         match unsafe { (self.0.create_map_count)(self.0.token, players, &mut count) } {
             W2R_OK => Ok(count),
@@ -46,7 +69,10 @@ impl Maps for HostMaps {
         }
     }
 
-    fn select(&mut self, players: u32, nth: u32) -> bool {
+    fn select(&mut self, players: u32, folder: &str, nth: u32) -> bool {
+        if self.limit(folder).is_err() {
+            return false;
+        }
         unsafe { (self.0.create_map_select)(self.0.token, players, nth) == W2R_OK }
     }
 }
@@ -81,6 +107,67 @@ fn load() -> i32 {
         W2R_OK => valid_players(value),
         _ => 0,
     }
+}
+
+fn save_folder(folder: &str) {
+    if let Some(h) = host() {
+        unsafe { (h.settings_set_str)(h.token, s(FOLDER_KEY), s(folder)) };
+    }
+}
+
+fn load_folder() -> String {
+    let Some(h) = host() else {
+        return String::new();
+    };
+    let mut buf = [0u8; FOLDER_CAP];
+    let mut len = 0u32;
+    let status = unsafe {
+        (h.settings_get_str)(
+            h.token,
+            s(FOLDER_KEY),
+            buf.as_mut_ptr().cast(),
+            FOLDER_CAP as u32,
+            &mut len,
+        )
+    };
+    if status != W2R_OK {
+        return String::new();
+    }
+    String::from_utf8_lossy(&buf[..(len as usize).min(buf.len())]).into_owned()
+}
+
+fn fill_edit(text: &str) {
+    let mut edit = EDIT.lock().unwrap_or_else(|e| e.into_inner());
+    *edit = [0; FOLDER_CAP];
+    let n = text.len().min(FOLDER_CAP - 1);
+    edit[..n].copy_from_slice(&text.as_bytes()[..n]);
+}
+
+/// The plugin's page in the settings: the folder limit.
+unsafe extern "C" fn on_ui(ui: *const W2rUi) {
+    let _ = catch_unwind(AssertUnwindSafe(|| {
+        let Some(ui) = (unsafe { ui.as_ref() }) else {
+            return;
+        };
+        if ui.struct_size < W2R_UI_TEXT_EDIT_SIZE {
+            unsafe { (ui.label)(ui.ctx, s("Needs a newer w2rpm to set a folder.")) };
+            return;
+        }
+        let mut buf = *EDIT.lock().unwrap_or_else(|e| e.into_inner());
+        let label =
+            "Only pick maps from this folder (inside your maps folder, e.g. mp; empty = all)";
+        if unsafe { (ui.text_edit)(ui.ctx, s(label), buf.as_mut_ptr(), buf.len() as u32) } != 0 {
+            *EDIT.lock().unwrap_or_else(|e| e.into_inner()) = buf;
+            let n = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
+            let text = String::from_utf8_lossy(&buf[..n]).into_owned();
+            let mut state = STATE.lock().unwrap_or_else(|e| e.into_inner());
+            if let Some(c) = state.as_mut() {
+                if c.set_folder(&text) {
+                    save_folder(c.folder());
+                }
+            }
+        }
+    }));
 }
 
 fn seed() -> u64 {
@@ -118,7 +205,10 @@ unsafe extern "C" fn on_load(host: *const W2rHost) -> W2rStatus {
         );
         return W2R_E_UNSUPPORTED;
     }
-    *STATE.lock().unwrap_or_else(|e| e.into_inner()) = Some(Controller::new(load(), seed()));
+    let mut controller = Controller::new(load(), seed());
+    controller.set_folder(&load_folder());
+    fill_edit(controller.folder());
+    *STATE.lock().unwrap_or_else(|e| e.into_inner()) = Some(controller);
     let status = unsafe { (h.create_ui_register)(h.token, Some(create_ui)) };
     if status != W2R_OK {
         log(
@@ -141,7 +231,7 @@ static TABLE: W2rPlugin = W2rPlugin {
     struct_size: W2R_PLUGIN_V1_SIZE,
     on_load: Some(on_load),
     on_event: None,
-    on_ui: None,
+    on_ui: Some(on_ui),
     on_unload: Some(on_unload),
 };
 

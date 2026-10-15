@@ -15,9 +15,9 @@ pub enum Unavailable {
 
 /// The host's map index, filtered by maximum players (0 = any).
 pub trait Maps {
-    fn count(&mut self, players: u32) -> Result<u32, Unavailable>;
+    fn count(&mut self, players: u32, folder: &str) -> Result<u32, Unavailable>;
     /// True when the `nth` such map is now the selected one.
-    fn select(&mut self, players: u32, nth: u32) -> bool;
+    fn select(&mut self, players: u32, folder: &str, nth: u32) -> bool;
 }
 
 /// The rows the host draws for us.
@@ -65,6 +65,21 @@ pub fn pick(count: u32, last: Option<u32>, rng: &mut Rng) -> u32 {
     }
 }
 
+/// The longest folder setting kept (the edit box holds one byte less).
+pub const FOLDER_CAP: usize = 128;
+
+/// A folder setting as typed: trimmed, `/` turned into `\`, no leading or trailing separators.
+pub fn clean_folder(text: &str) -> String {
+    text.trim()
+        .replace('/', "\\")
+        .trim_matches('\\')
+        .trim()
+        .chars()
+        .filter(|c| !c.is_control())
+        .take(FOLDER_CAP - 1)
+        .collect()
+}
+
 /// The saved slider value, or "any" when it is missing or out of range.
 pub fn valid_players(v: i64) -> i32 {
     if (0..=i64::from(MAX_PLAYERS)).contains(&v) {
@@ -89,6 +104,8 @@ pub struct Controller {
     /// The index among the filtered maps that the last press picked.
     last: Option<u32>,
     rng: Rng,
+    /// Only maps in this folder (under the maps folder) and below; empty = all.
+    folder: String,
 }
 
 impl Controller {
@@ -97,7 +114,23 @@ impl Controller {
             players: players.clamp(0, MAX_PLAYERS),
             last: None,
             rng: Rng::new(seed),
+            folder: String::new(),
         }
+    }
+
+    pub fn folder(&self) -> &str {
+        &self.folder
+    }
+
+    /// Restricts the pick to `folder` (as typed; cleaned here). True when it changed.
+    pub fn set_folder(&mut self, folder: &str) -> bool {
+        let folder = clean_folder(folder);
+        if folder == self.folder {
+            return false;
+        }
+        self.folder = folder;
+        self.last = None;
+        true
     }
 
     pub fn players(&self) -> i32 {
@@ -113,15 +146,24 @@ impl Controller {
             self.last = None;
         }
         let filter = self.players as u32;
-        match maps.count(filter) {
+        match maps.count(filter, &self.folder) {
             Err(Unavailable::Busy) => rows.label("Indexing maps..."),
             Err(Unavailable::Failed) => rows.label("Random map is not available"),
+            Ok(0) if !self.folder.is_empty() => rows.label(&format!(
+                "No {}maps found in \"{}\"",
+                if filter == 0 {
+                    String::new()
+                } else {
+                    format!("{filter}-player ")
+                },
+                self.folder
+            )),
             Ok(0) => rows.label(&format!("No {filter}-player maps found")),
             Ok(count) => {
                 let text = format!("Random map ({count})");
                 if rows.button(&text) {
                     let nth = pick(count, self.last, &mut self.rng);
-                    if maps.select(filter, nth) {
+                    if maps.select(filter, &self.folder, nth) {
                         self.last = Some(nth);
                     }
                 }
@@ -169,6 +211,9 @@ mod tests {
         maps: Vec<u32>,
         busy: bool,
         selected: Vec<(u32, u32)>,
+        /// Folder of each map, parallel to `maps`.
+        dirs: Vec<&'static str>,
+        folders_seen: Vec<String>,
     }
 
     impl FakeMaps {
@@ -177,25 +222,29 @@ mod tests {
                 maps: maps.to_vec(),
                 busy: false,
                 selected: Vec::new(),
+                dirs: vec![""; maps.len()],
+                folders_seen: Vec::new(),
             }
         }
-        fn matching(&self, players: u32) -> Vec<usize> {
+        fn matching(&self, players: u32, folder: &str) -> Vec<usize> {
             (0..self.maps.len())
                 .filter(|&i| players == 0 || self.maps[i] == players)
+                .filter(|&i| folder.is_empty() || self.dirs[i] == folder)
                 .collect()
         }
     }
 
     impl Maps for FakeMaps {
-        fn count(&mut self, players: u32) -> Result<u32, Unavailable> {
+        fn count(&mut self, players: u32, folder: &str) -> Result<u32, Unavailable> {
+            self.folders_seen.push(folder.to_owned());
             if self.busy {
                 return Err(Unavailable::Busy);
             }
-            Ok(self.matching(players).len() as u32)
+            Ok(self.matching(players, folder).len() as u32)
         }
-        fn select(&mut self, players: u32, nth: u32) -> bool {
+        fn select(&mut self, players: u32, folder: &str, nth: u32) -> bool {
             self.selected.push((players, nth));
-            (nth as usize) < self.matching(players).len()
+            (nth as usize) < self.matching(players, folder).len()
         }
     }
 
@@ -319,6 +368,37 @@ mod tests {
         c.frame(&mut rows, &mut maps);
         assert_eq!(rows.labels, ["Indexing maps..."]);
         assert!(rows.buttons.is_empty());
+    }
+
+    #[test]
+    fn the_folder_limit_reaches_the_host() {
+        let mut c = Controller::new(0, 3);
+        let mut maps = FakeMaps::new(&[2, 2, 4]);
+        maps.dirs = vec!["mp", "single", "mp"];
+        assert!(c.set_folder(" /mp/ "));
+        assert_eq!(c.folder(), "mp");
+        assert!(!c.set_folder("mp"));
+        let mut rows = FakeRows::default();
+        c.frame(&mut rows, &mut maps);
+        assert_eq!(rows.buttons, ["Random map (2)"]);
+        assert_eq!(maps.folders_seen, ["mp"]);
+        c.set_folder("nowhere");
+        let mut rows = FakeRows::default();
+        c.frame(&mut rows, &mut maps);
+        assert_eq!(rows.labels, ["No maps found in \"nowhere\""]);
+        c.set_folder("");
+        let mut rows = FakeRows::default();
+        c.frame(&mut rows, &mut maps);
+        assert_eq!(rows.buttons, ["Random map (3)"]);
+    }
+
+    #[test]
+    fn folder_text_is_cleaned() {
+        assert_eq!(clean_folder("  mp  "), "mp");
+        assert_eq!(clean_folder("/Maps/mp/"), "Maps\\mp");
+        assert_eq!(clean_folder("a\\b\\"), "a\\b");
+        assert_eq!(clean_folder("   "), "");
+        assert!(clean_folder(&"x".repeat(500)).len() < FOLDER_CAP);
     }
 
     #[test]
