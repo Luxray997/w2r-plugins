@@ -15,7 +15,7 @@ pull request; your job is to make that PR correct, small and easy to review.
 
 ## Non-negotiable rules
 
-- **Never commit to `main` and never push to it.** Work on a feature branch (`plugin/<id>` for a new
+- **Never commit to `main` and never push to it, unless the maintainer who started you says to.** Work on a feature branch (`plugin/<id>` for a new
   plugin, `fix/<id>-<what>` for a fix) and finish with a pull request. Do not open the PR or push
   unless the person asked you to.
 - **One plugin per PR.** Do not reformat, rename or "tidy" other plugins, the tools, the workflows

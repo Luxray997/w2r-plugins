@@ -9,12 +9,12 @@ person who opens the pull request is responsible for it. If you use an AI agent,
 1. **Open an issue first** for a new plugin or anything that needs a new host function or a risky
    capability (`hooks.raw`, `net.send`). Say what the plugin does and which capabilities it would
    need. Small fixes to an existing plugin can go straight to a PR.
-2. **Work on a branch, never on `main`.** Fork the repository (or, if you have write access, branch
-   from the latest `main`). Name the branch `plugin/<id>` for a new plugin or
-   `fix/<id>-<what>` / `docs/<what>` for other work. Nobody pushes to `main` directly, maintainers
-   included.
+2. **Work on a branch, never on `main`.** Fork the repository. Name the branch `plugin/<id>` for a
+   new plugin or `fix/<id>-<what>` / `docs/<what>` for other work. Outside contributors never push
+   to `main`; only maintainers do, and they may commit straight to it (pull requests are for
+   contributions from outside the maintainer team).
 3. **One plugin or one concern per pull request.** Do not mix a new plugin with changes to other
-   plugins, the tools, the workflows or the pinned w2rpm `rev`. Those go in their own PRs.
+   plugins, the tools, the workflows or the pinned w2r-mod-loader `rev`. Those go in their own PRs.
 4. **Keep commits readable.** A short imperative subject (`Random map: add a folder setting`), a body
    that says why. Do not commit build output, DLLs, `out/`, `target/`, or your local
    `.cargo/config.toml`.

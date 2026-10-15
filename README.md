@@ -54,7 +54,7 @@ never published.
   packages plugins and builds the index.
 - **CI** builds every plugin as a 32-bit DLL (the game is 32-bit), checks it, and on `main` publishes
   one package per plugin version plus the updated `index.json`. A published version never changes.
-- **The Mod Loader app and the in-game host** live in the w2rpm repository. The host loads plugins through a
+- **The Mod Loader app and the in-game host** live in the [w2r-mod-loader](https://github.com/hastinbe/w2r-mod-loader) repository. The host loads plugins through a
   small C interface; capabilities such as game access or chat are shown to the player and enforced
   as far as that is possible. They are a consent prompt, not a sandbox.
 

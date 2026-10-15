@@ -1,8 +1,8 @@
 # Writing a plugin: guide for contributors and their AI agents
 
-A plugin is a 32-bit Windows DLL that Warcraft II Remastered loads through the w2rpm host. It is
+A plugin is a 32-bit Windows DLL that Warcraft II Remastered loads through the W2R Mod Loader host. It is
 written in Rust here (the ABI is C, so other languages work, but this repository builds Rust).
-This guide is the short version of what you need; the normative documents are in the w2rpm
+This guide is the short version of what you need; the normative documents are in the w2r-mod-loader
 repository and are linked at the end.
 
 Read [CONTRIBUTING.md](../CONTRIBUTING.md) first for the workflow and the rules. This file is about
@@ -108,7 +108,7 @@ dependencies without a reason you can write in the PR; the only one most plugins
 
 ## 3. The ABI rules that matter
 
-Source of truth: `docs/abi.md` and `crates/w2r-abi` in the w2rpm repository (section 8 says how to
+Source of truth: `docs/abi.md` and `crates/w2r-abi` in the w2r-mod-loader repository (section 8 says how to
 read them locally). The rules agents break most:
 
 1. **Entry point.** Export exactly one function, `w2r_plugin_main`, returning a pointer to a
@@ -226,11 +226,11 @@ cargo run --locked -p w2r-publish -- check      # manifests
   Studio C++ build tools on Windows).
 - Put every decision in the model and test it. A plugin whose only logic lives in `extern "C"`
   callbacks cannot be reviewed or tested and will be sent back.
-- CI builds every plugin but currently runs unit tests only for some crates. Run
-  `cargo test -p <your-crate>` yourself and paste the result in the PR.
+- CI builds every plugin and runs the unit tests of all of them (`cargo test --workspace`). Run
+  `cargo test -p <your-crate>` yourself first and paste the result in the PR.
 - To try it in the game: build with `--release --target i686-pc-windows-msvc`, package it with
   `w2r-publish package` (see CONTRIBUTING.md) or copy the DLL and `plugin.json` into
-  `plugins\<id>\` under the w2r folder, enable it in the w2rpm manager and read
+  `plugins\<id>\` under the w2r folder, enable it in the W2R Mod Loader and read
   `logs\w2r.log` (in `Saved Games\Warcraft2Remastered\w2r\`). A plugin that faults is disabled by the
   host; the log says why.
 
@@ -253,16 +253,16 @@ cargo run --locked -p w2r-publish -- check      # manifests
 ## 7. The README of a plugin
 
 Players see it in the manager. Say what it does in plain words, list every setting and what it
-changes, list each capability with the reason, say what game build and what w2rpm version it needs,
+changes, list each capability with the reason, say what game build and what W2R Mod Loader version it needs,
 and give credit when you ported code (and include the original `LICENSE`).
 
 ## 8. Where the real documentation is
 
 The ABI header, `docs/abi.md`, `docs/manifest.md`, `docs/load-policy.md` and `docs/layout.md` live in
-the w2rpm repository (`hastinbe/w2rpm`). This repository depends on it through Cargo, pinned by
+the w2r-mod-loader repository (`hastinbe/w2r-mod-loader`, public). This repository depends on it through Cargo, pinned by
 `rev` in the root `Cargo.toml`. After a first `cargo fetch` (or any build), Cargo has checked out
 the **whole** repository at that revision on your machine, under
-`~/.cargo/git/checkouts/w2rpm-*/<short rev>/`. Read the documents there; they are guaranteed to
+`~/.cargo/git/checkouts/w2r-mod-loader-*/<short rev>/`. Read the documents there; they are guaranteed to
 match the ABI you are compiling against:
 
 - `docs/abi.md`: every host function, limit, event and rule.
