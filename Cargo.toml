@@ -10,7 +10,7 @@ rust-version = "1.85"
 # Pinned to a commit of the host/manager repo so a plugin build never changes under us. Bump the
 # rev in its own PR when the ABI changes. For local work against a sibling checkout see
 # CONTRIBUTING.md (an untracked .cargo/config.toml patch).
-w2r-abi = { git = "https://github.com/hastinbe/w2rpm", rev = "16ff8ba0d8d63c24f4301781b8b8c797979e819c" }
-w2r-formats = { git = "https://github.com/hastinbe/w2rpm", rev = "16ff8ba0d8d63c24f4301781b8b8c797979e819c" }
-w2rpm-lib = { git = "https://github.com/hastinbe/w2rpm", rev = "16ff8ba0d8d63c24f4301781b8b8c797979e819c" }
-w2r-preview = { git = "https://github.com/hastinbe/w2rpm", rev = "16ff8ba0d8d63c24f4301781b8b8c797979e819c" }
+w2r-abi = { git = "https://github.com/hastinbe/w2r-mod-loader", rev = "93dd4f574e751c348fb6e845e558fe2b40282036" }
+w2r-formats = { git = "https://github.com/hastinbe/w2r-mod-loader", rev = "93dd4f574e751c348fb6e845e558fe2b40282036" }
+w2r-loader-lib = { git = "https://github.com/hastinbe/w2r-mod-loader", rev = "93dd4f574e751c348fb6e845e558fe2b40282036" }
+w2r-preview = { git = "https://github.com/hastinbe/w2r-mod-loader", rev = "93dd4f574e751c348fb6e845e558fe2b40282036" }

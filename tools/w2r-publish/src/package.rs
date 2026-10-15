@@ -1,6 +1,6 @@
 //! Builds `<id>-<version>.zip` from the compiled DLL and the plugin folder. Only the files the
 //! manager's archive rules accept are written: `plugin.json`, the entry DLL, `README.md`,
-//! `LICENSE` (docs/index.md in the w2rpm repo). The zip is deterministic (fixed timestamps, fixed
+//! `LICENSE` (docs/index.md in the w2r-mod-loader repo). The zip is deterministic (fixed timestamps, fixed
 //! order), so the same inputs give the same hash.
 
 use crate::Result;

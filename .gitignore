@@ -1,4 +1,4 @@
 /target/
-# Local override pointing w2r-abi / w2rpm-lib at a sibling checkout; never committed.
+# Local override pointing w2r-abi / w2r-loader-lib at a sibling checkout; never committed.
 /.cargo/config.toml
 /out/

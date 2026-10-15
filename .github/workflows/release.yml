@@ -15,7 +15,6 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # Fetch git dependencies (w2rpm) with the git CLI, so cargo uses git's credential setup.
   CARGO_NET_GIT_FETCH_WITH_CLI: "true"
   DOWNLOAD_BASE: https://github.com/hastinbe/w2r-plugins/releases/download
 
@@ -27,14 +26,6 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v5
-      - name: Let git read the private w2rpm repository
-        # A fine-grained token with read access to hastinbe/w2rpm only (docs/PIPELINE.md). Remove
-        # this step when w2rpm is public. Pull requests from forks get no secrets and cannot build.
-        env:
-          W2RPM_READ: ${{ secrets.W2RPM_READ }}
-        run: |
-          if [ -z "$W2RPM_READ" ]; then echo "::error::secret W2RPM_READ is not set"; exit 1; fi
-          git config --global url."https://x-access-token:${W2RPM_READ}@github.com/hastinbe/w2rpm".insteadOf "https://github.com/hastinbe/w2rpm"
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: i686-pc-windows-msvc

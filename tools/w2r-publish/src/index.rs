@@ -13,7 +13,7 @@ use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use w2r_formats::semver::Version;
-use w2rpm_lib::index::{format_time, parse_index};
+use w2r_loader_lib::index::{format_time, parse_index};
 
 /// The oldest manager that can install what this tool publishes.
 const MIN_MANAGER: &str = "0.1.0";

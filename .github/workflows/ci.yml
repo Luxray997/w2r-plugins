@@ -7,8 +7,6 @@ on:
 permissions:
   contents: read
 
-# Fetch git dependencies (w2rpm) with the git CLI, so cargo uses git's credential setup instead of
-# its own libgit2 client.
 env:
   CARGO_NET_GIT_FETCH_WITH_CLI: "true"
 
@@ -17,26 +15,17 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Let git read the private w2rpm repository
-        # A fine-grained token with read access to hastinbe/w2rpm only (docs/PIPELINE.md). Remove
-        # this step when w2rpm is public. Pull requests from forks get no secrets and cannot build.
-        shell: bash
-        env:
-          W2RPM_READ: ${{ secrets.W2RPM_READ }}
-        run: |
-          if [ -z "$W2RPM_READ" ]; then echo "::error::secret W2RPM_READ is not set"; exit 1; fi
-          git config --global url."https://x-access-token:${W2RPM_READ}@github.com/hastinbe/w2rpm".insteadOf "https://github.com/hastinbe/w2rpm"
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: i686-pc-windows-msvc
       - uses: Swatinem/rust-cache@v2
       - name: Manifests
         run: cargo run --locked -q -p w2r-publish -- check
-      - name: Tool tests
-        run: cargo test --locked -p w2r-publish
       - name: Build every plugin (32-bit, like the game)
         run: cargo build --locked --release --target i686-pc-windows-msvc --workspace --exclude w2r-publish
-      - name: Plugin tests
-        run: cargo test --locked -p w2r-chat
+      - name: Unit tests (every plugin and the tools)
+        # Host-side (64-bit) tests of each plugin's model; game-facing code is 32-bit only and is
+        # covered by the build step above.
+        run: cargo test --locked --workspace
       - name: Package (dry run)
         run: cargo run --locked -q -p w2r-publish -- package --target-dir target/i686-pc-windows-msvc/release --out out/packages
