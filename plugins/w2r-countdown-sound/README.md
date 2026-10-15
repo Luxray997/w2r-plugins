@@ -4,6 +4,10 @@ Plays a short beep for each second of the multiplayer lobby's start countdown (5
 longer, higher one when the countdown ends and the game starts. Local only; the simulation is
 untouched.
 
+**Why it exists:** the game's own countdown is not audible when the game is not in focus, so if
+you wait in the lobby with another window active you miss the start. This plugin's beeps are heard
+in the background.
+
 - **Only in the background:** the game plays its own countdown sound while it has focus, so the
   beeps are skipped then and played only when another window is active, the game is minimised, or
   you are alt-tabbed. (The foreground window is compared with this process.)
