@@ -29,25 +29,6 @@ the game ends.
 - **Capabilities:** `game.read`, `chat.read`, `chat.write`, `net.send` (to reach the ladder
   service).
 
-## Observer system (WIP)
-
-An observer mode in the style of war2combat's, for spectating and casting games.
-
-- **Free camera and player switching:** jump between players' viewpoints or follow a unit or
-  group.
-- **Full-information view:** see all players' resources, supply, upgrades, and production
-  without fog of war restrictions.
-- **Stats overlay:** army size, income and spend rate, APM, unit counts, and tech progress for each
-  player.
-- **Observer chat:** a separate channel so spectators can't leak information to players.
-- **Casting aids:** production and upgrade timelines, a game clock, and replay-style highlights of
-  big fights or expansions.
-- **Open questions:**
-  - How war2combat implements observer slots and whether the same approach carries over.
-  - Making sure observers can never influence the simulation or be used to ghost.
-- **Capabilities:** `game.read`, `hooks.raw` (most likely). Needs the two-approval review, with
-  every hook documented.
-
 ## Resource sharing
 
 Lets teammates in a team game send resources to each other.
