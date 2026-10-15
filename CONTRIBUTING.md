@@ -4,7 +4,7 @@ A plugin is a folder `plugins/<id>/` with:
 
 | File | Required | Notes |
 |---|---|---|
-| `plugin.json` | yes | the manifest, see `docs/manifest.md` in the [w2rpm repo](https://github.com/hastinbe/w2r-mod-loader); `id` equals the folder name |
+| `plugin.json` | yes | the manifest, see `docs/manifest.md` in the [w2r-mod-loader repo](https://github.com/hastinbe/w2r-mod-loader); `id` equals the folder name |
 | `Cargo.toml` | yes | `cdylib`, `version` equal to the manifest version, `w2r-abi.workspace = true` |
 | `src/` | yes | the source; everything in the DLL must be built from this repo |
 | `README.md` | recommended | packaged and shown to users |
@@ -38,16 +38,16 @@ cargo build --release --target i686-pc-windows-msvc -p <crate>
 cargo run -p w2r-publish -- package --target-dir target/i686-pc-windows-msvc/release --out out/packages
 ```
 
-## Building against a local w2rpm checkout
+## Building against a local w2r-mod-loader checkout
 
-The workspace pins `w2r-abi`, `w2r-formats` and `w2r-loader-lib` to a w2rpm commit. To work against a
+The workspace pins `w2r-abi`, `w2r-formats` and `w2r-loader-lib` to a w2r-mod-loader commit. To work against a
 sibling checkout, create the untracked `.cargo/config.toml`:
 
 ```toml
 [patch."https://github.com/hastinbe/w2r-mod-loader"]
-w2r-abi = { path = "../w2rpm/crates/w2r-abi" }
-w2r-formats = { path = "../w2rpm/crates/w2r-formats" }
-w2r-loader-lib = { path = "../w2rpm/crates/w2r-loader-lib" }
+w2r-abi = { path = "../w2r-mod-loader/crates/w2r-abi" }
+w2r-formats = { path = "../w2r-mod-loader/crates/w2r-formats" }
+w2r-loader-lib = { path = "../w2r-mod-loader/crates/w2r-loader-lib" }
 ```
 
 When the ABI changes, bump the `rev` in the root `Cargo.toml` in its own PR.

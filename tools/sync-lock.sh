@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Keep Cargo.lock consistent with what CI sees: no .cargo/config.toml patch, git sources for the
-# w2rpm crates. Run from anywhere. `sync-lock.sh` regenerates the lock; `sync-lock.sh --check`
+# w2r-mod-loader crates. Run from anywhere. `sync-lock.sh` regenerates the lock; `sync-lock.sh --check`
 # fails if it would change (used by the pre-commit hook).
 set -euo pipefail
 cd "$(dirname "$0")/.."
