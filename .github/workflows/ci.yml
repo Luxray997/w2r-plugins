@@ -18,14 +18,14 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Let git read the private w2rpm repository
-        # A fine-grained token with read access to hastinbe/w2rpm only (docs/PIPELINE.md). Remove
+        # A fine-grained token with read access to hastinbe/w2r-mod-loader only (docs/PIPELINE.md). Remove
         # this step when w2rpm is public. Pull requests from forks get no secrets and cannot build.
         shell: bash
         env:
-          W2RPM_READ: ${{ secrets.W2RPM_READ }}
+          W2R_LOADER_READ: ${{ secrets.W2R_LOADER_READ }}
         run: |
-          if [ -z "$W2RPM_READ" ]; then echo "::error::secret W2RPM_READ is not set"; exit 1; fi
-          git config --global url."https://x-access-token:${W2RPM_READ}@github.com/hastinbe/w2rpm".insteadOf "https://github.com/hastinbe/w2rpm"
+          if [ -z "$W2R_LOADER_READ" ]; then echo "::error::secret W2R_LOADER_READ is not set"; exit 1; fi
+          git config --global url."https://x-access-token:${W2R_LOADER_READ}@github.com/hastinbe/w2r-mod-loader".insteadOf "https://github.com/hastinbe/w2r-mod-loader"
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: i686-pc-windows-msvc

@@ -8,7 +8,7 @@ description = "Release tooling for w2r-plugins: check manifests, build packages,
 
 [dependencies]
 w2r-formats.workspace = true
-w2rpm-lib.workspace = true
+w2r-loader-lib.workspace = true
 serde_json = "1"
 sha2 = "0.10"
 zip = { version = "2", default-features = false, features = ["deflate"] }

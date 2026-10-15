@@ -35,19 +35,19 @@ users must be able to download the packages), then Settings, Pages, "Deploy from
   entry; changes ship under a new version.
 - The index never loses an entry. Removing a plugin (security) is a manual, reviewed edit of
   `index.json` on the `gh-pages` branch, announced in the release notes. Raise `serial` when you do.
-- Everything in an index must pass `w2rpm-lib`'s parser; nothing is published that the manager would
+- Everything in an index must pass `w2r-loader-lib`'s parser; nothing is published that the manager would
   refuse.
 
 ## Repository access for CI
 
-`w2r-publish` and the plugins depend on `w2r-abi`, `w2r-formats` and `w2rpm-lib` from the w2rpm
+`w2r-publish` and the plugins depend on `w2r-abi`, `w2r-formats` and `w2r-loader-lib` from the w2rpm
 repository, pinned by commit in the root `Cargo.toml`. While w2rpm is private, both workflows need a
 token to fetch it:
 
 1. Create a **fine-grained personal access token** (GitHub, Settings, Developer settings) owned by the
-   account that owns w2rpm, with **only** the repository `hastinbe/w2rpm` and the single permission
+   account that owns w2rpm, with **only** the repository `hastinbe/w2r-mod-loader` and the single permission
    **Contents: Read-only**. Give it an expiry (for example 90 days) and note the date.
-2. Add it to this repository as an Actions secret named `W2RPM_READ` (Settings, Secrets and variables,
+2. Add it to this repository as an Actions secret named `W2R_LOADER_READ` (Settings, Secrets and variables,
    Actions).
 3. Both workflows start with a step that points git at the token for that one repository and fail with a
    clear message if the secret is missing. Renew the token before it expires.
