@@ -40,18 +40,7 @@ users must be able to download the packages), then Settings, Pages, "Deploy from
 
 ## Repository access for CI
 
-`w2r-publish` and the plugins depend on `w2r-abi`, `w2r-formats` and `w2r-loader-lib` from the w2r-mod-loader
-repository, pinned by commit in the root `Cargo.toml`. While w2r-mod-loader is private, both workflows need a
-token to fetch it:
-
-1. Create a **fine-grained personal access token** (GitHub, Settings, Developer settings) owned by the
-   account that owns w2r-mod-loader, with **only** the repository `hastinbe/w2r-mod-loader` and the single permission
-   **Contents: Read-only**. Give it an expiry (for example 90 days) and note the date.
-2. Add it to this repository as an Actions secret named `W2R_LOADER_READ` (Settings, Secrets and variables,
-   Actions).
-3. Both workflows start with a step that points git at the token for that one repository and fail with a
-   clear message if the secret is missing. Renew the token before it expires.
-
-Cargo fetches through the git CLI (`CARGO_NET_GIT_FETCH_WITH_CLI`) so it honours that setting. Pull
-requests from forks receive no secrets, so CI cannot build them; a maintainer re-runs the checks from a
-branch in this repository. Delete the step and the secret when w2r-mod-loader becomes public.
+`w2r-publish` and the plugins depend on `w2r-abi`, `w2r-formats` and `w2r-loader-lib` from the
+public w2r-mod-loader repository, pinned by commit in the root `Cargo.toml`. Cargo fetches them
+without credentials, so the workflows need no secret and pull requests from forks build like any
+other. To move to a newer host, bump the `rev` in its own PR (see CONTRIBUTING.md).
