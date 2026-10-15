@@ -70,7 +70,6 @@ Anyone can. The process is a pull request from a feature branch, one plugin at a
   that matter, testing and common mistakes.
 - [AGENTS.md](AGENTS.md): the same for AI coding agents, as a short list of rules. If you build with an
   assistant, start here.
-- [IDEAS.md](IDEAS.md): plugins people have thought about but nobody has built yet.
 
 Quick start:
 
