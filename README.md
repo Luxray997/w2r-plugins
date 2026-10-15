@@ -1,6 +1,6 @@
 # w2r-plugins
 
-Plugins for **Warcraft II Remastered**, installed and updated with the **W2R Mod Loader**.
+Plugins for **Warcraft II Remastered**, installed and updated with the **[W2R Mod Loader](https://github.com/hastinbe/w2r-mod-loader/releases)**.
 
 Each plugin is a small add-on that changes or adds one thing: a chat history, a map preview during a
 match, colored player boxes, a random-map button, and so on. This repository holds their source,
@@ -13,7 +13,7 @@ builds them in CI, and publishes the list the Mod Loader reads.
 
 You do not download anything from this repository by hand.
 
-1. Get the **W2R Mod Loader** and run it. On first start it offers to install the mod into your game, then to
+1. Download the **[W2R Mod Loader](https://github.com/hastinbe/w2r-mod-loader/releases)** and run it. On first start it offers to install the mod into your game, then to
    install plugins.
 2. Open the **Browse** tab, pick plugins, and read the permission list in the window that opens.
 3. Start the game from Battle.net as usual.
