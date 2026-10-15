@@ -1,10 +1,10 @@
 # w2r-plugins
 
-Plugins for **Warcraft II Remastered**, installed and updated with the **w2rpm** manager.
+Plugins for **Warcraft II Remastered**, installed and updated with the **W2R Mod Loader**.
 
 Each plugin is a small add-on that changes or adds one thing: a chat history, a map preview during a
 match, colored player boxes, a random-map button, and so on. This repository holds their source,
-builds them in CI, and publishes the list the manager reads.
+builds them in CI, and publishes the list the Mod Loader reads.
 
 > A fan project. It is not made or endorsed by Blizzard. Plugins run inside the game, so install
 > only ones you trust, and read what each one asks for before you accept.
@@ -13,12 +13,12 @@ builds them in CI, and publishes the list the manager reads.
 
 You do not download anything from this repository by hand.
 
-1. Get **w2rpm** and run it. On first start it offers to install the mod into your game, then to
+1. Get the **W2R Mod Loader** and run it. On first start it offers to install the mod into your game, then to
    install plugins.
 2. Open the **Browse** tab, pick plugins, and read the permission list in the window that opens.
 3. Start the game from Battle.net as usual.
 
-The manager checks every download against a size and SHA-256 listed in the index before it
+The Mod Loader checks every download against a size and SHA-256 listed in the index before it
 installs it, and tells you when an update is available.
 
 ## The plugins
@@ -34,7 +34,7 @@ installs it, and tells you when an update is available.
 | **Countdown Sound** | A beep for each second of the lobby countdown, audible in the background | game access, hooks | no |
 | **Observer** | Pick OBS as your team to watch a game instead of playing | game access, hooks | **yes** |
 
-"Hooks" means the plugin patches code inside the game, which the manager flags as dangerous at
+"Hooks" means the plugin patches code inside the game, which the Mod Loader flags as dangerous at
 install. It is how most of them draw on the game's own screens. Each plugin's `README.md` in
 [plugins/](plugins/) lists exactly what it asks for and why.
 
@@ -46,7 +46,7 @@ never published.
 ```
    plugins/<id>/ source ──PR──► main ──CI──► packages + index.json ──► GitHub Pages
                                                                                       │
-                                              w2rpm manager  ◄────────────────────────┘
+                                              W2R Mod Loader ◄────────────────────────┘
                                               (downloads, verifies, installs)
 ```
 
@@ -54,7 +54,7 @@ never published.
   packages plugins and builds the index.
 - **CI** builds every plugin as a 32-bit DLL (the game is 32-bit), checks it, and on `main` publishes
   one package per plugin version plus the updated `index.json`. A published version never changes.
-- **The manager and the in-game host** live in the w2rpm repository. The host loads plugins through a
+- **The Mod Loader app and the in-game host** live in the w2rpm repository. The host loads plugins through a
   small C interface; capabilities such as game access or chat are shown to the player and enforced
   as far as that is possible. They are a consent prompt, not a sandbox.
 
