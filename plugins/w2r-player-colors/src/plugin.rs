@@ -508,6 +508,20 @@ unsafe extern "C" fn on_event(event: *const W2rEvent) {
     }
 }
 
+/// The plugin's rows on the Plugins screen: the hotkey, so players know about it.
+unsafe extern "C" fn on_ui(ui: *const W2rUi) {
+    let Some(ui) = (unsafe { ui.as_ref() }) else {
+        return;
+    };
+    unsafe {
+        (ui.label)(
+            ui.ctx,
+            s("Hold the tilde key (~, left of 1) during a match to show every player's name next to their color."),
+        );
+        (ui.label)(ui.ctx, s("Players who have left or been defeated are dimmed."));
+    }
+}
+
 fn remove_hook() {
     let hook = HOOK.lock().unwrap_or_else(|e| e.into_inner()).take();
     if let (Some(h), Some(hook)) = (host(), hook) {
@@ -571,7 +585,7 @@ static TABLE: W2rPlugin = W2rPlugin {
     struct_size: W2R_PLUGIN_V1_SIZE,
     on_load: Some(on_load),
     on_event: Some(on_event),
-    on_ui: None,
+    on_ui: Some(on_ui),
     on_unload: Some(on_unload),
 };
 

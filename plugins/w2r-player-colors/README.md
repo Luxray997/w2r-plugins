@@ -10,7 +10,7 @@ of your food count.
 - **You:** your own box has a white outline.
 - **Colors:** read from the game's own color table, so a recolor from another mod shows here too.
 
-- **Names:** hold the **tilde key** (the one left of 1) to show every player's name next to their color, with
+- **Names (also noted on the plugin's settings screen):** hold the **tilde key** (the one left of 1) to show every player's name next to their color, with
   players who have left or been defeated shown dimmed. It works only while the game window has the
   focus and the chat box is closed, and not together with Ctrl, Shift or Alt. Another key can be
   set with the plugin setting `names_key` (a Windows virtual-key code, 192 by default). If the
