@@ -60,6 +60,26 @@ type WidgetTextFn = unsafe extern "C" fn(
 );
 type TextWidthFn = unsafe extern "C" fn(*mut c_void, f32, *const core::ffi::c_char, i32) -> f32;
 
+const VK_SHIFT: i32 = 0x10;
+const VK_CONTROL: i32 = 0x11;
+const VK_MENU: i32 = 0x12;
+/// The default key that shows every player's name (the tilde key, left of 1); the setting `names_key`
+/// holds another virtual-key code.
+const DEFAULT_NAMES_KEY: i64 = 0xc0;
+const DEPARTED_DIM: u32 = 0x5000_0000;
+const TEXT_DEPARTED: u32 = 0xffa0_a0a0;
+
+#[link(name = "user32")]
+unsafe extern "system" {
+    fn GetAsyncKeyState(vk: i32) -> i16;
+    fn GetForegroundWindow() -> *mut c_void;
+    fn GetWindowThreadProcessId(window: *mut c_void, process: *mut u32) -> u32;
+}
+#[link(name = "kernel32")]
+unsafe extern "system" {
+    fn GetCurrentProcessId() -> u32;
+}
+
 /// UI context: mouse position (floats), font, text padding, text style colours.
 const CTX_MOUSE_X: usize = 0x1bc;
 const CTX_MOUSE_Y: usize = 0x1c0;
@@ -89,6 +109,7 @@ struct Game {
     result: *const u8,
     peers: *const u8,
     slot_by_net: *const u32,
+    chat_target_mode: *const u8,
 }
 
 // SAFETY: addresses of the game's globals and a function, fixed for the session; used from the
@@ -133,6 +154,38 @@ fn lookup(name: &str) -> Option<usize> {
     (unsafe { (h.symbol_address)(h.token, handle, &mut addr) } == W2R_OK).then_some(addr)
 }
 
+fn setting(key: &str, default: i64) -> i64 {
+    let mut v = 0i64;
+    match host() {
+        Some(h) if unsafe { (h.settings_get_i64)(h.token, s(key), &mut v) } == W2R_OK => v,
+        _ => default,
+    }
+}
+
+static NAMES_KEY: AtomicUsize = AtomicUsize::new(0);
+
+/// Whether the names key is held: only while the game's window has the focus and the chat box is
+/// closed, and not with Ctrl, Shift or Alt (those make other commands).
+fn names_key_held(game: &Game) -> bool {
+    unsafe {
+        if *game.chat_target_mode != 0 {
+            return false;
+        }
+        let mut pid = 0u32;
+        GetWindowThreadProcessId(GetForegroundWindow(), &mut pid);
+        if pid != GetCurrentProcessId() {
+            return false;
+        }
+        let mut vk = NAMES_KEY.load(Ordering::Relaxed) as i32;
+        if vk == 0 {
+            vk = setting("names_key", DEFAULT_NAMES_KEY).clamp(1, 254) as i32;
+            NAMES_KEY.store(vk as usize, Ordering::Relaxed);
+        }
+        let down = |vk: i32| GetAsyncKeyState(vk) as u16 & 0x8000 != 0;
+        down(vk) && !down(VK_CONTROL) && !down(VK_SHIFT) && !down(VK_MENU)
+    }
+}
+
 fn resolve() -> Result<Game, &'static str> {
     let at = |name: &'static str| lookup(name).ok_or(name);
     Ok(Game {
@@ -148,6 +201,7 @@ fn resolve() -> Result<Game, &'static str> {
         result: at("PlayerMatchResult")? as *const u8,
         peers: at("PeerTable")? as *const u8,
         slot_by_net: at("LobbySlotByNetSlot")? as *const u32,
+        chat_target_mode: at("ChatTargetMode")? as *const u8,
     })
 }
 
@@ -204,7 +258,9 @@ unsafe fn draw(game: &Game, x: f32) {
         if roster.len() < 2 {
             return;
         }
-        let items = model::layout(&roster, |p| still_in(game, p));
+        let names = names_key_held(game);
+        // With the names up everyone shows, those who are out dimmed.
+        let items = model::layout(&roster, |p| names || still_in(game, p));
         if items.is_empty() {
             return;
         }
@@ -230,6 +286,10 @@ unsafe fn draw(game: &Game, x: f32) {
 
         let strip_left = panel_x + x;
         let strip_right = strip_left + STRIP_WIDTH;
+        if names {
+            draw_named(game, ctx.cast::<u8>(), canvas, &items, (panel_x, panel_y, panel_w, panel_h), (strip_left, strip_right));
+            return;
+        }
         let (offsets, width) = model::offsets(&items);
         if !LOGGED_PLACEMENT.swap(true, Ordering::Relaxed) {
             log(
@@ -277,6 +337,82 @@ unsafe fn draw(game: &Game, x: f32) {
             // Past the bar's right end, inside the top bar's own strip (it clips anything below).
             let tip_x = if left + width + 120.0 <= panel_x + panel_w { left + width + 8.0 } else { left - 128.0 };
             draw_tip(game, ctx.cast::<u8>(), canvas, player, tip_x, panel_y, panel_h);
+        }
+    }
+}
+
+/// The bar with every player's name after their box, on a dark backing so the text reads over the
+/// resource strip when the bar is too wide to sit beside it.
+unsafe fn draw_named(
+    game: &Game,
+    ctx: *const u8,
+    canvas: *mut c_void,
+    items: &[Item],
+    panel: (f32, f32, f32, f32),
+    strip: (f32, f32),
+) {
+    unsafe {
+        let font = ctx.add(CTX_FONT).cast::<*const u8>().read_unaligned();
+        if font.is_null() {
+            return;
+        }
+        let userdata = font.cast::<*mut c_void>().read_unaligned();
+        let font_h = font.add(USER_FONT_HEIGHT).cast::<f32>().read_unaligned();
+        let Some(width_fn) = font.add(USER_FONT_WIDTH).cast::<Option<TextWidthFn>>().read_unaligned()
+        else {
+            return;
+        };
+        let (panel_x, panel_y, panel_w, panel_h) = panel;
+        let text_width = |p: u8| {
+            let name = name_of(game, p);
+            width_fn(userdata, font_h, name.as_ptr().cast(), name.len() as i32)
+        };
+        let (offsets, width) = model::named_offsets(items, &text_width);
+        let left = model::named_start_x(strip.0, strip.1, panel_x, panel_x + panel_w, width);
+        let top = panel_y + ((panel_h - model::BOX) / 2.0).floor();
+        let me = *game.local_player;
+        let fill = game.fill_rect;
+        fill(canvas, left - 6.0, panel_y, width + 12.0, panel_h, 2.0, TIP_BACK);
+        let mut style = [0u32; 7];
+        style[2] = ctx.add(CTX_WINDOW_BACKGROUND).cast::<u32>().read_unaligned();
+        style[4] = ctx.add(CTX_TEXT_EXTRA0).cast::<u32>().read_unaligned();
+        style[5] = ctx.add(CTX_TEXT_EXTRA1).cast::<u32>().read_unaligned();
+        style[6] = ctx.add(CTX_TEXT_EXTRA2).cast::<u32>().read_unaligned();
+        for (item, at) in items.iter().zip(offsets) {
+            let bx = left + at;
+            match *item {
+                Item::Box(player) => {
+                    let alive = still_in(game, player);
+                    let border = if player == me { BORDER_SELF } else { BORDER };
+                    let outer = model::BOX + 2.0;
+                    let colour = colour_of(game, player);
+                    let (border, colour) = if alive {
+                        (border, colour)
+                    } else {
+                        ((border & 0x00ff_ffff) | DEPARTED_DIM, (colour & 0x00ff_ffff) | DEPARTED_DIM)
+                    };
+                    fill(canvas, bx - 1.0, top - 1.0, outer, outer, 0.0, border);
+                    fill(canvas, bx, top, model::BOX, model::BOX, 0.0, colour);
+                    let name = name_of(game, player);
+                    style[3] = if alive { TIP_TEXT } else { TEXT_DEPARTED };
+                    (game.widget_text)(
+                        canvas,
+                        bx + model::BOX + model::NAME_GAP,
+                        panel_y + ((panel_h - font_h) / 2.0).floor(),
+                        text_width(player) + 1.0,
+                        font_h,
+                        name.as_ptr().cast(),
+                        name.len() as i32,
+                        style.as_ptr().cast(),
+                        0x11,
+                        font.cast(),
+                    );
+                }
+                Item::Divider => {
+                    let dx = bx + model::TEAM_GAP;
+                    fill(canvas, dx, top, model::DIVIDER, model::BOX, 0.0, DIVIDER_COLOUR);
+                }
+            }
         }
     }
 }

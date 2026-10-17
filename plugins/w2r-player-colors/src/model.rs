@@ -85,6 +85,45 @@ pub fn start_x(
     (left >= panel_left).then_some(left)
 }
 
+/// Space between a box and its name, and between one name and the next box.
+pub const NAME_GAP: f32 = 5.0;
+pub const NAME_AFTER: f32 = 14.0;
+
+/// Like [`offsets`] for the bar with every player's name after their box: `name_width(player)` is
+/// the text's width. A box's name starts at its offset + [`BOX`] + [`NAME_GAP`].
+pub fn named_offsets(items: &[Item], name_width: impl Fn(u8) -> f32) -> (Vec<f32>, f32) {
+    let mut at = 0.0f32;
+    let mut out = Vec::with_capacity(items.len());
+    for (i, item) in items.iter().enumerate() {
+        let before = match (i.checked_sub(1).map(|j| items[j]), item) {
+            (None, _) => 0.0,
+            (Some(Item::Divider), _) | (_, Item::Divider) => 0.0,
+            _ => NAME_AFTER,
+        };
+        at += before;
+        out.push(at);
+        at += match item {
+            Item::Box(p) => BOX + NAME_GAP + name_width(*p),
+            Item::Divider => TEAM_GAP * 2.0 + DIVIDER,
+        };
+    }
+    (out, at)
+}
+
+/// Where the named bar starts: where the plain bar would, or, when it is too wide for either side
+/// of the resource strip, flush with the panel's right edge (over the strip), or its left edge if
+/// even that is not enough.
+pub fn named_start_x(
+    strip_left: f32,
+    strip_right: f32,
+    panel_left: f32,
+    panel_right: f32,
+    width: f32,
+) -> f32 {
+    start_x(strip_left, strip_right, panel_left, panel_right, width)
+        .unwrap_or((panel_right - width - MARGIN).max(panel_left))
+}
+
 /// An opaque color in the game's byte order (R in the low byte) from the game's float colors.
 pub fn pack(rgb: [f32; 3]) -> u32 {
     let byte = |v: f32| (v.clamp(0.0, 1.0) * 255.0 + 0.5) as u32;
@@ -156,6 +195,26 @@ mod tests {
             Some(700.0 - MARGIN - 50.0)
         );
         assert_eq!(start_x(20.0, 320.0, 0.0, 330.0, 50.0), None);
+    }
+
+    #[test]
+    fn named_bar_puts_each_name_after_its_box() {
+        let width_of = |p: u8| 40.0 + f32::from(p);
+        let (at, width) = named_offsets(&[Item::Box(0), Item::Box(1)], width_of);
+        assert_eq!(at, [0.0, BOX + NAME_GAP + 40.0 + NAME_AFTER]);
+        assert_eq!(width, at[1] + BOX + NAME_GAP + 41.0);
+        let (at, _) = named_offsets(&[Item::Box(0), Item::Divider, Item::Box(1)], width_of);
+        assert_eq!(at[1], BOX + NAME_GAP + 40.0, "no extra gap around a divider");
+        assert_eq!(named_offsets(&[], width_of), (vec![], 0.0));
+    }
+
+    #[test]
+    fn named_bar_falls_back_to_the_panel_edge() {
+        // Fits to the right of the strip: same place as the plain bar.
+        assert_eq!(named_start_x(100.0, 400.0, 0.0, 1000.0, 50.0), 400.0 + MARGIN);
+        // Too wide for either side: flush right, then flush left.
+        assert_eq!(named_start_x(100.0, 400.0, 0.0, 1000.0, 700.0), 1000.0 - 700.0 - MARGIN);
+        assert_eq!(named_start_x(100.0, 400.0, 0.0, 600.0, 900.0), 0.0);
     }
 
     #[test]
