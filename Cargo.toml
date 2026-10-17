@@ -9,7 +9,7 @@ rust-version = "1.85"
 [workspace.dependencies]
 # Pinned to a commit of the host/manager repo so a plugin build never changes under us. Bump the
 # rev in its own PR when the ABI changes. For local work against a sibling checkout see
-# CONTRIBUTING.md (an untracked .cargo/config.toml patch).
+# CONTRIBUTING.md (an untracked .cargo/config.toml paths override).
 w2r-abi = { git = "https://github.com/hastinbe/w2r-mod-loader", rev = "93dd4f574e751c348fb6e845e558fe2b40282036" }
 w2r-formats = { git = "https://github.com/hastinbe/w2r-mod-loader", rev = "93dd4f574e751c348fb6e845e558fe2b40282036" }
 w2r-loader-lib = { git = "https://github.com/hastinbe/w2r-mod-loader", rev = "93dd4f574e751c348fb6e845e558fe2b40282036" }

@@ -87,11 +87,16 @@ The workspace pins `w2r-abi`, `w2r-formats` and `w2r-loader-lib` to a w2r-mod-lo
 sibling checkout, create the untracked `.cargo/config.toml`:
 
 ```toml
-[patch."https://github.com/hastinbe/w2r-mod-loader"]
-w2r-abi = { path = "../w2r-mod-loader/crates/w2r-abi" }
-w2r-formats = { path = "../w2r-mod-loader/crates/w2r-formats" }
-w2r-loader-lib = { path = "../w2r-mod-loader/crates/w2r-loader-lib" }
+paths = [
+    "../w2r-mod-loader/crates/w2r-abi",
+    "../w2r-mod-loader/crates/w2r-formats",
+    "../w2r-mod-loader/crates/w2r-loader-lib",
+    "../w2r-mod-loader/crates/w2r-preview",
+]
 ```
+
+(A `[patch]` table does not work here: cargo ignores it for dependencies pinned with `rev`, and only
+prints "patch was not used" warnings.)
 
 When the ABI changes, bump the `rev` in the root `Cargo.toml` in its own PR.
 
