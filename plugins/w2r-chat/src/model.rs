@@ -237,6 +237,168 @@ pub const LOG: Spec = Spec {
     max: 1,
 };
 
+/// How a setting is shown on the host's options screen (`settings_declare`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Widget {
+    Checkbox,
+    Slider,
+    Text,
+}
+
+/// One setting as the plugin declares it to the host: the options screen draws it under
+/// `category` / `subcategory` with the others, and edits it for the plugin. The labels,
+/// subcategories and descriptions are wc2r-plus 1.1.0's, so the screen reads the same.
+#[derive(Clone, Copy, Debug)]
+pub struct Declaration {
+    pub key: &'static str,
+    pub widget: Widget,
+    pub subcategory: &'static str,
+    pub label: &'static str,
+    pub description: &'static str,
+    pub default: i64,
+    pub min: i64,
+    pub max: i64,
+    pub default_text: &'static str,
+    /// Greyed while this checkbox of the plugin's own is off.
+    pub active_when: &'static str,
+    /// Stored and readable, not shown.
+    pub hidden: bool,
+}
+
+/// The category every chat setting goes in.
+pub const CATEGORY: &str = "Chat";
+
+const fn slider(
+    spec: Spec,
+    sub: &'static str,
+    label: &'static str,
+    desc: &'static str,
+) -> Declaration {
+    Declaration {
+        key: spec.key,
+        widget: Widget::Slider,
+        subcategory: sub,
+        label,
+        description: desc,
+        default: spec.default,
+        min: spec.min,
+        max: spec.max,
+        default_text: "",
+        active_when: "",
+        hidden: false,
+    }
+}
+
+const fn checkbox(
+    spec: Spec,
+    sub: &'static str,
+    label: &'static str,
+    desc: &'static str,
+) -> Declaration {
+    Declaration {
+        widget: Widget::Checkbox,
+        ..slider(spec, sub, label, desc)
+    }
+}
+
+const fn colour(spec: &ColourSpec, label: &'static str, desc: &'static str) -> Declaration {
+    Declaration {
+        key: spec.key,
+        widget: Widget::Text,
+        subcategory: "Style",
+        label,
+        description: desc,
+        default: 0,
+        min: 0,
+        max: 0,
+        default_text: spec.default_hex,
+        active_when: "channels",
+        hidden: false,
+    }
+}
+
+/// Every setting, in the order the screen lists them.
+pub const DECLARATIONS: [Declaration; 13] = [
+    Declaration {
+        hidden: true,
+        ..checkbox(
+            ENABLED,
+            "Behavior",
+            "Enabled",
+            "Master on/off switch for the chat panel.",
+        )
+    },
+    slider(
+        LINES,
+        "Behavior",
+        "History Height (Lines)",
+        "How tall the scrollable history box is, in wrapped lines.",
+    ),
+    slider(
+        FADE,
+        "Behavior",
+        "Fade Time",
+        "How long a message stays, in seconds, before fading out. Messages will not fade if set to 0.",
+    ),
+    checkbox(
+        CLICK_UNFOCUS,
+        "Behavior",
+        "Click Closes Chat",
+        "Clicking discards your message and focuses the game, allowing hotkeys to be pressed.",
+    ),
+    slider(
+        BACKLOG,
+        "Behavior",
+        "Saved Message Limit",
+        "How many messages to keep before the oldest are dropped.",
+    ),
+    checkbox(
+        TIMESTAMPS,
+        "Behavior",
+        "Show Timestamps",
+        "Add a timestamp before each message.",
+    ),
+    checkbox(
+        LOG,
+        "Behavior",
+        "Log Chat to Disk",
+        "Write messages to log files in the plugin's data folder.",
+    ),
+    slider(
+        BG,
+        "Style",
+        "Background Opacity",
+        "How opaque the background is, from 0 (invisible) to 255 (solid).",
+    ),
+    checkbox(
+        NAME_COLOURS,
+        "Style",
+        "Color Player Names",
+        "Messages are drawn with sender's name as their in-game color.",
+    ),
+    checkbox(
+        CHANNELS,
+        "Style",
+        "Enhanced Chat Channels",
+        "Shows messages with a channel indicating recipients, in a distinct color. Tab cycles channels while typing. Enter opens [Team], Ctrl+Enter [Allies], Shift+Enter [All].",
+    ),
+    colour(
+        &CHANNEL_COLOURS[0],
+        "[Team] Color",
+        "The hex color code to use for the Team channel.",
+    ),
+    colour(
+        &CHANNEL_COLOURS[1],
+        "[All] Color",
+        "The hex color code to use for the All channel.",
+    ),
+    colour(
+        &CHANNEL_COLOURS[2],
+        "[Allies] Color",
+        "The hex color code to use for the Allies channel.",
+    ),
+];
+
 impl Spec {
     pub fn clamp(&self, v: i64) -> i64 {
         v.clamp(self.min, self.max)
@@ -668,6 +830,53 @@ pub fn name_bytes(slot: &[u8]) -> Option<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn declarations_cover_every_setting_once_within_the_hosts_limits() {
+        let specs = [
+            ENABLED,
+            LINES,
+            FADE,
+            BACKLOG,
+            BG,
+            TIMESTAMPS,
+            NAME_COLOURS,
+            CHANNELS,
+            CLICK_UNFOCUS,
+            LOG,
+        ];
+        for spec in specs {
+            assert_eq!(
+                DECLARATIONS.iter().filter(|d| d.key == spec.key).count(),
+                1,
+                "{}",
+                spec.key
+            );
+        }
+        for c in &CHANNEL_COLOURS {
+            assert!(DECLARATIONS.iter().any(|d| d.key == c.key));
+        }
+        for d in DECLARATIONS {
+            assert!(
+                d.label.len() <= 64 && d.description.len() <= 256,
+                "{}",
+                d.key
+            );
+            assert!(d.label.is_ascii() && d.description.is_ascii(), "{}", d.key);
+            if d.widget == Widget::Slider {
+                assert!(
+                    d.min < d.max && (d.min..=d.max).contains(&d.default),
+                    "{}",
+                    d.key
+                );
+            }
+            if !d.active_when.is_empty() {
+                let switch = DECLARATIONS.iter().position(|e| e.key == d.active_when);
+                let me = DECLARATIONS.iter().position(|e| e.key == d.key);
+                assert!(switch < me, "{} must come after its switch", d.key);
+            }
+        }
+    }
 
     fn msg(text: &str, at: u64) -> Message {
         Message::new(text.as_bytes(), false, Channel::All, at).unwrap()
