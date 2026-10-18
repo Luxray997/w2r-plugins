@@ -71,6 +71,10 @@ Start from an existing plugin, such as `plugins/w2r-random-map` (no capabilities
 - **Versions are immutable.** A published `(id, version)` never changes. Bump `version` in
   `Cargo.toml` and `plugin.json` for any change that should ship; `w2r-publish check` fails if they
   differ.
+  **Every feature or change in behavior bumps the version in the same commit** (a new or removed
+  setting, hotkey, screen text, a fix players would notice, a changed `description`): minor for
+  features, patch for fixes. CI publishes only versions the index does not have yet, so an
+  unbumped change never reaches players. Bump `Cargo.lock` too (`cargo build` does it).
 - Credit original authors in `author` and `LICENSE` when you port code.
 
 ## Local checks
