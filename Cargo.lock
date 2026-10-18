@@ -631,7 +631,7 @@ dependencies = [
 
 [[package]]
 name = "w2r-chat"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "w2r-abi",
  "windows-sys 0.61.2",
@@ -639,7 +639,7 @@ dependencies = [
 
 [[package]]
 name = "w2r-countdown-sound"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "w2r-abi",
 ]
@@ -671,7 +671,7 @@ dependencies = [
 
 [[package]]
 name = "w2r-map-preview"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "w2r-abi",
  "w2r-preview",
@@ -709,7 +709,7 @@ dependencies = [
 
 [[package]]
 name = "w2r-random-map"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "w2r-abi",
 ]

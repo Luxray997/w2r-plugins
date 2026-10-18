@@ -2,7 +2,7 @@
   "schema": 1,
   "id": "w2r-map-preview",
   "name": "In-game Map Preview",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "Beau Hastings",
   "description": "Shows the lobby's map preview (terrain, gold mines, start locations) over a running match. Press the backslash key to open and close it.",
   "entry": "w2r_map_preview.dll",

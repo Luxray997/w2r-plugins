@@ -2,7 +2,7 @@
   "schema": 1,
   "id": "w2r-random-map",
   "name": "Random Map",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "Beau Hastings",
   "description": "Adds a Random map button to the Create Multiplayer Game screen, with a slider to only pick maps for a chosen number of players.",
   "entry": "w2r_random_map.dll",

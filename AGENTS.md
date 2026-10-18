@@ -35,6 +35,8 @@ pull request; your job is to make that PR correct, small and easy to review.
 - **Be honest about testing.** You usually cannot run the game. Run what you can (unit tests, the
   32-bit build, `w2r-publish check`) and tell the person plainly what was and was not verified in
   the game. Never claim a UI or behavior works without seeing it.
+- **Bump the plugin version with every feature or behavior change**, in `Cargo.toml` and
+  `plugin.json` (and `Cargo.lock`), in the same commit. An unbumped change is never published.
 - **Do not add attribution lines** (such as "Co-Authored-By") to commits or PR text. Disclose AI
   help in the PR template's "AI assistance" section instead.
 
