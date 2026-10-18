@@ -110,9 +110,10 @@ pub fn compose_mode_of(channel: Channel) -> u8 {
 pub const MOD_SHIFT: u8 = 0x03;
 pub const MOD_CTRL: u8 = 0x04;
 
-/// The channel Enter opens: Shift is `[All]`, Ctrl is `[Allies]`, plain is `[Team]`; a channel
-/// with nobody in it falls back to `[All]`.
-pub fn open_channel(modifiers: u8, has_team: bool, has_allies: bool) -> Channel {
+/// The channel Enter opens: Shift is `[All]`, Ctrl is `[Allies]`, plain is the channel composed in
+/// last (`last`, `System` for none yet) or `[Team]`; a channel with nobody in it falls back to
+/// `[All]`.
+pub fn open_channel(modifiers: u8, has_team: bool, has_allies: bool, last: Channel) -> Channel {
     if modifiers & MOD_SHIFT != 0 {
         Channel::All
     } else if modifiers & MOD_CTRL != 0 {
@@ -121,6 +122,10 @@ pub fn open_channel(modifiers: u8, has_team: bool, has_allies: bool) -> Channel 
         } else {
             Channel::All
         }
+    } else if last == Channel::All {
+        Channel::All
+    } else if last == Channel::Allies && has_allies {
+        Channel::Allies
     } else if has_team {
         Channel::Team
     } else {
@@ -1007,12 +1012,18 @@ mod tests {
 
     #[test]
     fn enter_opens_by_modifier_and_falls_back_to_all() {
-        assert_eq!(open_channel(0, true, true), Channel::Team);
-        assert_eq!(open_channel(0, false, true), Channel::All);
-        assert_eq!(open_channel(MOD_CTRL, true, true), Channel::Allies);
-        assert_eq!(open_channel(MOD_CTRL, true, false), Channel::All);
-        assert_eq!(open_channel(MOD_SHIFT, true, true), Channel::All);
-        assert_eq!(open_channel(MOD_SHIFT | MOD_CTRL, true, true), Channel::All);
+        let s = Channel::System;
+        assert_eq!(open_channel(0, true, true, s), Channel::Team);
+        assert_eq!(open_channel(0, false, true, s), Channel::All);
+        assert_eq!(open_channel(MOD_CTRL, true, true, s), Channel::Allies);
+        assert_eq!(open_channel(MOD_CTRL, true, false, s), Channel::All);
+        assert_eq!(open_channel(MOD_SHIFT, true, true, s), Channel::All);
+        assert_eq!(open_channel(MOD_SHIFT | MOD_CTRL, true, true, s), Channel::All);
+        // Plain Enter reopens the channel used last, when it still has people in it.
+        assert_eq!(open_channel(0, true, true, Channel::Allies), Channel::Allies);
+        assert_eq!(open_channel(0, true, false, Channel::Allies), Channel::Team);
+        assert_eq!(open_channel(0, true, true, Channel::All), Channel::All);
+        assert_eq!(open_channel(0, true, true, Channel::Team), Channel::Team);
     }
 
     #[test]

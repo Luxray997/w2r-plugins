@@ -338,6 +338,9 @@ struct State {
     /// line was last written in.
     compose: Channel,
     prompt_channel: Channel,
+    /// The channel composed in last (`System` for none yet); plain Enter reopens in it. Kept
+    /// across matches.
+    last_channel: Channel,
     /// The teammates (same lobby team and allied) taken at match start, as a recipient mask.
     team_mask: u8,
     /// The text of the three channel colour boxes in the plugin screen (NUL-terminated); the
@@ -1105,7 +1108,10 @@ fn composing(g: &Game) -> bool {
 }
 
 fn compose_on(g: &Game, channel: Channel) {
-    with_state(|st| st.compose = channel);
+    with_state(|st| {
+        st.compose = channel;
+        st.last_channel = channel;
+    });
     unsafe { *g.chat_target_mode = model::compose_mode_of(channel) };
 }
 
@@ -1116,7 +1122,8 @@ fn on_compose_opened(g: &Game, modifiers: u8) {
         return;
     }
     let has_team = with_state(|st| st.team_mask) != 0;
-    let channel = model::open_channel(modifiers, has_team, allied_mask(g) != 0);
+    let last = with_state(|st| st.last_channel);
+    let channel = model::open_channel(modifiers, has_team, allied_mask(g) != 0, last);
     compose_on(g, channel);
 }
 
