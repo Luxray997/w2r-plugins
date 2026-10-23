@@ -5,7 +5,7 @@
 
 use core::ffi::c_void;
 use std::panic::{AssertUnwindSafe, catch_unwind};
-use std::sync::atomic::{AtomicI64, AtomicPtr, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI64, AtomicPtr, AtomicUsize, Ordering};
 use std::sync::{Mutex, OnceLock};
 
 use w2r_abi::*;
@@ -176,7 +176,51 @@ unsafe extern "C" fn on_event(event: *const W2rEvent) {
     }
 }
 
+/// Set when the host took the setting as a declaration: its options screen draws and stores it,
+/// so `on_ui` draws nothing.
+static DECLARED: AtomicBool = AtomicBool::new(false);
+
+/// Declares the setting to a host that has `settings_declare`; an older host keeps the slider
+/// `on_ui` draws.
+fn declare_setting() {
+    let Some(h) = host() else { return };
+    if h.struct_size < W2R_HOST_SETTINGS_DECLARE_SIZE {
+        return;
+    }
+    let choices = model::CHOICES.map(s);
+    let def = W2rSettingDef {
+        struct_size: W2R_SETTING_DEF_V1_SIZE,
+        kind: W2R_SETTING_CHOICE,
+        default_int: 0,
+        min: 0,
+        max: 0,
+        flags: 0,
+        choice_count: choices.len() as u32,
+        choices: choices.as_ptr(),
+        reserved: 0,
+        key: s(model::KEY),
+        label: s(model::LABEL),
+        description: s(model::DESCRIPTION),
+        category: s(model::CATEGORY),
+        subcategory: s(model::SUBCATEGORY),
+        default_str: s(""),
+        active_when: s(""),
+    };
+    let status = unsafe { (h.settings_declare)(h.token, &def) };
+    if status == W2R_OK {
+        DECLARED.store(true, Ordering::Release);
+    } else {
+        log(
+            W2R_LOG_WARN,
+            &format!("settings_declare returned {status}; drawing the slider"),
+        );
+    }
+}
+
 unsafe extern "C" fn on_ui(ui: *const W2rUi) {
+    if DECLARED.load(Ordering::Acquire) {
+        return;
+    }
     let Some(ui) = (unsafe { ui.as_ref() }) else {
         return;
     };
@@ -211,6 +255,7 @@ unsafe extern "C" fn on_load(host: *const W2rHost) -> W2rStatus {
         palette: palette as *const *mut u8,
     });
     load_choice();
+    declare_setting();
     let Some(h) = self::host() else {
         return W2R_E_STATE;
     };

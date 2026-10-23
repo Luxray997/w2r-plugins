@@ -8,6 +8,16 @@ pub const RAMP: usize = 4;
 pub const KEY: &str = "black";
 pub const MAX_CHOICE: i32 = 2;
 
+/// The setting as the host's options screen shows it (`settings_declare`), worded as wc2r-plus
+/// words it.
+pub const CATEGORY: &str = "Accessibility";
+pub const SUBCATEGORY: &str = "Team Colors";
+pub const LABEL: &str = "Black Team Color";
+pub const DESCRIPTION: &str =
+    "Changes the black team color for increased map and minimap visibility. Only displays locally.";
+/// The dropdown, in choice order: choice `i` is stored as `i`.
+pub const CHOICES: [&str; MAX_CHOICE as usize + 1] = ["Default", "Pink", "Cyan"];
+
 /// Choice 1 pink, 2 cyan; anything else (0) leaves black alone.
 pub fn target(choice: i64) -> Option<[u8; 3]> {
     match choice {
@@ -46,6 +56,19 @@ pub fn float_rgb(rgb: [u8; 3]) -> [f32; 3] {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_declaration_fits_the_hosts_limits() {
+        assert!(LABEL.len() <= 64 && DESCRIPTION.len() <= 256);
+        assert!(CATEGORY.len() <= 32 && SUBCATEGORY.len() <= 32);
+        for text in [LABEL, DESCRIPTION, CATEGORY, SUBCATEGORY]
+            .iter()
+            .chain(CHOICES.iter())
+        {
+            assert!(text.is_ascii() && !text.is_empty());
+        }
+        assert_eq!(target(0), None, "choice 0 is Default");
+    }
 
     #[test]
     fn choices() {
