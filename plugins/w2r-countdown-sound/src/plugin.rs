@@ -199,7 +199,11 @@ fn load_volume() {
     let Some(h) = host() else { return };
     let mut v = 0i64;
     let ok = unsafe { (h.settings_get_i64)(h.token, s(model::KEY), &mut v) } == W2R_OK;
-    let v = if ok { v.clamp(0, 100) as i32 } else { model::DEFAULT_VOLUME };
+    let v = if ok {
+        v.clamp(0, i64::from(model::MAX_VOLUME)) as i32
+    } else {
+        model::DEFAULT_VOLUME
+    };
     VOLUME.store(v, Ordering::Relaxed);
 }
 
@@ -255,21 +259,70 @@ unsafe extern "C" fn on_event(event: *const W2rEvent) {
     }
 }
 
+/// Set when the host took the volume as a declaration: its options screen draws and stores it, so
+/// `on_ui` only shows which sound is in use.
+static DECLARED: AtomicBool = AtomicBool::new(false);
+
+/// Declares the volume to a host that has `settings_declare`; an older host keeps the slider
+/// `on_ui` draws.
+fn declare_setting() {
+    let Some(h) = host() else { return };
+    if h.struct_size < W2R_HOST_SETTINGS_DECLARE_SIZE {
+        return;
+    }
+    let def = W2rSettingDef {
+        struct_size: W2R_SETTING_DEF_V1_SIZE,
+        kind: W2R_SETTING_INT,
+        default_int: i64::from(model::DEFAULT_VOLUME),
+        min: 0,
+        max: i64::from(model::MAX_VOLUME),
+        flags: 0,
+        choice_count: 0,
+        choices: core::ptr::null(),
+        reserved: 0,
+        key: s(model::KEY),
+        label: s(model::LABEL),
+        description: s(model::DESCRIPTION),
+        category: s(model::CATEGORY),
+        subcategory: s(model::SUBCATEGORY),
+        default_str: s(""),
+        active_when: s(""),
+    };
+    let status = unsafe { (h.settings_declare)(h.token, &def) };
+    if status == W2R_OK {
+        DECLARED.store(true, Ordering::Release);
+    } else {
+        log(
+            W2R_LOG_WARN,
+            &format!("settings_declare returned {status}; drawing the slider"),
+        );
+    }
+}
+
 unsafe extern "C" fn on_ui(ui: *const W2rUi) {
     let Some(ui) = (unsafe { ui.as_ref() }) else {
         return;
     };
+    let declared = DECLARED.load(Ordering::Acquire);
     let mut value = VOLUME.load(Ordering::Relaxed);
     unsafe {
-        (ui.label)(ui.ctx, s("Sounds during the lobby start countdown. 0 is silent."));
+        if !declared {
+            (ui.label)(
+                ui.ctx,
+                s("Sounds during the lobby start countdown. 0 is silent."),
+            );
+        }
         let status = match STATUS.load(Ordering::Acquire) {
             STATUS_CAPTURED => "Using the game's own countdown sound.",
             STATUS_FAILED => "Could not copy the game's sound; using a generated beep.",
             _ => "Copies the game's countdown sound at the first countdown.",
         };
         (ui.label)(ui.ctx, s(status));
-        if (ui.slider_int)(ui.ctx, s("Volume"), &mut value, 0, 100) != 0 {
-            let value = value.clamp(0, 100);
+        if declared {
+            return;
+        }
+        if (ui.slider_int)(ui.ctx, s("Volume"), &mut value, 0, model::MAX_VOLUME) != 0 {
+            let value = value.clamp(0, model::MAX_VOLUME);
             VOLUME.store(value, Ordering::Relaxed);
             if let Some(h) = host() {
                 (h.settings_set_i64)(h.token, s(model::KEY), value as i64);
@@ -301,6 +354,7 @@ unsafe extern "C" fn on_load(host: *const W2rHost) -> W2rStatus {
     }
     SOUND_TABLE.store(table, Ordering::Release);
     load_volume();
+    declare_setting();
     unsafe { (h.subscribe)(h.token, W2R_EVT_SETTINGS_CHANGED) };
     RUNNING.store(true, Ordering::Release);
     let worker = thread::Builder::new()

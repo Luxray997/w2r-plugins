@@ -2,6 +2,14 @@
 
 pub const KEY: &str = "volume";
 pub const DEFAULT_VOLUME: i32 = 60;
+pub const MAX_VOLUME: i32 = 100;
+
+/// The setting as the host's options screen shows it (`settings_declare`): a slider next to the
+/// game's own volume settings.
+pub const CATEGORY: &str = "Sound";
+pub const SUBCATEGORY: &str = "Countdown";
+pub const LABEL: &str = "Countdown Volume";
+pub const DESCRIPTION: &str = "Volume of the beeps for each second of the lobby start countdown, played while the game is in the background. 0 is silent.";
 
 /// Bytes from the countdown flag to the `u32` holding the seconds left (0x95d430 - 0x95d426).
 pub const SECONDS_OFFSET: usize = 10;
@@ -138,6 +146,16 @@ pub fn wav_from_pcm(f: &PcmFormat, data: &[u8], volume: i32) -> Option<Vec<u8>> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_declaration_fits_the_hosts_limits() {
+        assert!(LABEL.len() <= 64 && DESCRIPTION.len() <= 256);
+        assert!(CATEGORY.len() <= 32 && SUBCATEGORY.len() <= 32);
+        for text in [LABEL, DESCRIPTION, CATEGORY, SUBCATEGORY] {
+            assert!(text.is_ascii() && !text.is_empty());
+        }
+        assert!((0..=MAX_VOLUME).contains(&DEFAULT_VOLUME));
+    }
 
     fn run(samples: &[(bool, u32)]) -> Vec<Option<Cue>> {
         let mut t = Tracker::default();
