@@ -23,4 +23,4 @@ older one shows them on the plugin's card instead):
 | Style | Background Opacity, 0 to 255 | 100 |
 | Style | Color Player Names | on |
 | Style | Enhanced Chat Channels | on |
-| Style | [Team] / [All] / [Allies] Color, six hex digits (greyed while channels are off) | `25e65f` / `929292` / `69a7ff` |
+| Style | [Team] / [All] / [Allies] Color, a color picker (greyed while channels are off) | `25e65f` / `929292` / `69a7ff` |

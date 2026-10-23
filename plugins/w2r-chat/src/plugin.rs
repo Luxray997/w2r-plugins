@@ -1643,7 +1643,7 @@ fn declare_settings() {
             kind: match d.widget {
                 model::Widget::Checkbox => W2R_SETTING_BOOL,
                 model::Widget::Slider => W2R_SETTING_INT,
-                model::Widget::Text => W2R_SETTING_STRING,
+                model::Widget::Color => W2R_SETTING_COLOR,
             },
             flags: if d.hidden { W2R_SETTING_HIDDEN } else { 0 },
             key: s(d.key),
@@ -1651,12 +1651,13 @@ fn declare_settings() {
             description: s(d.description),
             category: s(model::CATEGORY),
             subcategory: s(d.subcategory),
-            default_int: d.default as i32,
-            min: d.min as i32,
-            max: d.max as i32,
+            default_int: d.default,
+            min: d.min,
+            max: d.max,
             default_str: s(d.default_text),
             choices: core::ptr::null(),
             choice_count: 0,
+            reserved: 0,
             active_when: if d.active_when.is_empty() {
                 empty
             } else {

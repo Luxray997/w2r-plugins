@@ -242,7 +242,8 @@ pub const LOG: Spec = Spec {
 pub enum Widget {
     Checkbox,
     Slider,
-    Text,
+    /// A color picker, stored as six hex digits.
+    Color,
 }
 
 /// One setting as the plugin declares it to the host: the options screen draws it under
@@ -304,7 +305,7 @@ const fn checkbox(
 const fn colour(spec: &ColourSpec, label: &'static str, desc: &'static str) -> Declaration {
     Declaration {
         key: spec.key,
-        widget: Widget::Text,
+        widget: Widget::Color,
         subcategory: "Style",
         label,
         description: desc,
