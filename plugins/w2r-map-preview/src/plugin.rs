@@ -425,7 +425,7 @@ unsafe extern "C" fn frame_detour() {
 
 fn load_settings() {
     with_state(|st| {
-        st.size = model::clamp_size(setting("size", model::SIZE_DEFAULT as i64));
+        st.size = model::clamp_size(setting(model::SIZE_KEY, model::SIZE_DEFAULT as i64));
     });
 }
 
@@ -454,7 +454,50 @@ unsafe extern "C" fn on_event(event: *const W2rEvent) {
     }
 }
 
+/// Set when the host took the picture size as a declaration: its options screen draws and stores
+/// it, so `on_ui` draws nothing.
+static DECLARED: AtomicBool = AtomicBool::new(false);
+
+/// Declares the picture size to a host that has `settings_declare`; an older host keeps the slider
+/// `on_ui` draws.
+fn declare_setting() {
+    let Some(h) = host() else { return };
+    if h.struct_size < W2R_HOST_SETTINGS_DECLARE_SIZE {
+        return;
+    }
+    let def = W2rSettingDef {
+        struct_size: W2R_SETTING_DEF_V1_SIZE,
+        kind: W2R_SETTING_INT,
+        default_int: i64::from(model::SIZE_DEFAULT),
+        min: i64::from(model::SIZE_MIN),
+        max: i64::from(model::SIZE_MAX),
+        flags: 0,
+        choice_count: 0,
+        choices: core::ptr::null(),
+        reserved: 0,
+        key: s(model::SIZE_KEY),
+        label: s(model::LABEL),
+        description: s(model::DESCRIPTION),
+        category: s(model::CATEGORY),
+        subcategory: s(model::SUBCATEGORY),
+        default_str: s(""),
+        active_when: s(""),
+    };
+    let status = unsafe { (h.settings_declare)(h.token, &def) };
+    if status == W2R_OK {
+        DECLARED.store(true, Ordering::Release);
+    } else {
+        log(
+            W2R_LOG_WARN,
+            &format!("settings_declare returned {status}; drawing the slider"),
+        );
+    }
+}
+
 unsafe extern "C" fn on_ui(ui: *const W2rUi) {
+    if DECLARED.load(Ordering::Acquire) {
+        return;
+    }
     let Some(ui) = (unsafe { ui.as_ref() }) else {
         return;
     };
@@ -464,7 +507,7 @@ unsafe extern "C" fn on_ui(ui: *const W2rUi) {
         if (ui.slider_int)(ui.ctx, s("Picture size"), &mut size, model::SIZE_MIN, model::SIZE_MAX)
             != 0
         {
-            save_setting("size", size as i64);
+            save_setting(model::SIZE_KEY, size as i64);
         }
     }
 }
@@ -487,6 +530,7 @@ unsafe extern "C" fn on_load(host: *const W2rHost) -> W2rStatus {
     };
     let _ = GAME.set(game);
     load_settings();
+    declare_setting();
     let Some(h) = self::host() else {
         return W2R_E_STATE;
     };

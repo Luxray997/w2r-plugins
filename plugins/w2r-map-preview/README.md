@@ -6,7 +6,9 @@ the game window has the focus and the chat box is closed (while you type, Tab is
 plugin's channel switch). The game's own Tab action (minimap terrain) still happens too.
 
 - **Placement:** just under the top bar, at the left edge.
-- **Settings** (in the in-game plugin list): the picture size.
+- **Setting:** **Map Preview Size** (128 to 512, default 256) in the game's options screen, under
+  UI / Map Preview. A W2R Mod Loader without the options screen shows it as a slider on the
+  plugin's card instead.
 - **What it shows:** exactly what the lobby preview shows, drawn by the same code
   (`w2r-preview` in the w2rpm repository). It is the whole map as a file, not what you have
   explored, so it reveals nothing the lobby did not.
