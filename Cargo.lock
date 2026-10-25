@@ -624,7 +624,7 @@ source = "git+https://github.com/hastinbe/w2r-mod-loader?rev=57036d8410ac46d2eb4
 
 [[package]]
 name = "w2r-black-recolor"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "w2r-abi",
 ]

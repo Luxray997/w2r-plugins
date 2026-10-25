@@ -4,8 +4,9 @@ Draws the black player in pink (default) or cyan on your screen. Purely cosmetic
 else sees it and the simulation is untouched. Port of the "Black2Pink" option of
 [wc2r-plus](https://github.com/Luxray997/wc2r-plus) by Luxray997 (MIT).
 
-- **Setting:** `Black team color`: 0 default, 1 pink (`e87bdd`), 2 cyan (`00c6e0`). Changes apply at
-  once.
+- **Setting:** **Black Team Color** in the game's options screen, under Accessibility / Team Colors:
+  Default, Pink (`e87bdd`) or Cyan (`00c6e0`). Changes apply when the screen applies them. A W2R
+  Mod Loader without the options screen shows it as a slider on the plugin's card instead.
 - **What changes:** the game's HD color table entry for index 5 (units, color boxes, anything that
   reads the table) and the 4-entry black ramp in the render palette (classic-graphics sprites and the
   minimap), shaded by the stock ramp's brightness steps.
