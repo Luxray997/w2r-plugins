@@ -4,6 +4,14 @@
 pub const SIZE_MIN: i32 = 128;
 pub const SIZE_MAX: i32 = 512;
 pub const SIZE_DEFAULT: i32 = 256;
+pub const SIZE_KEY: &str = "size";
+
+/// The picture size as the host's options screen shows it (`settings_declare`).
+pub const CATEGORY: &str = "UI";
+pub const SUBCATEGORY: &str = "Map Preview";
+pub const LABEL: &str = "Map Preview Size";
+pub const DESCRIPTION: &str =
+    "Edge of the map preview picture. Press \\ during a match to open and close the preview.";
 /// Space between the top bar and the picture, and between the picture and the screen's left edge.
 pub const MARGIN: f32 = 8.0;
 /// Height of the in-match top bar (UI units), which the picture sits under.
@@ -87,6 +95,16 @@ pub fn fit(area: Rect, w: usize, h: usize) -> Rect {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_declaration_fits_the_hosts_limits() {
+        assert!(LABEL.len() <= 64 && DESCRIPTION.len() <= 256);
+        assert!(CATEGORY.len() <= 32 && SUBCATEGORY.len() <= 32);
+        for text in [LABEL, DESCRIPTION, CATEGORY, SUBCATEGORY] {
+            assert!(text.is_ascii() && !text.is_empty());
+        }
+        assert_eq!(clamp_size(SIZE_DEFAULT as i64), SIZE_DEFAULT);
+    }
 
     #[test]
     fn a_held_key_flips_once() {

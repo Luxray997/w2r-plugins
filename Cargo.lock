@@ -671,7 +671,7 @@ dependencies = [
 
 [[package]]
 name = "w2r-map-preview"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "w2r-abi",
  "w2r-preview",
