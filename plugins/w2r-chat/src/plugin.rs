@@ -1624,8 +1624,74 @@ fn save_setting(key: &str, value: i64) {
     }
 }
 
+/// Set when the host took the settings as declarations: its options screen draws and stores them,
+/// so `on_ui` draws nothing.
+static DECLARED: AtomicBool = AtomicBool::new(false);
+
+/// Declares every setting to a host that has `settings_declare` (W2R Mod Loader with the
+/// options screen). An older host keeps the rows `on_ui` draws.
+fn declare_settings() {
+    let Some(h) = host() else { return };
+    if h.struct_size < W2R_HOST_SETTINGS_DECLARE_SIZE {
+        return;
+    }
+    let empty = s("");
+    let mut refused = 0;
+    for d in model::DECLARATIONS {
+        let def = W2rSettingDef {
+            struct_size: W2R_SETTING_DEF_V1_SIZE,
+            kind: match d.widget {
+                model::Widget::Checkbox => W2R_SETTING_BOOL,
+                model::Widget::Slider => W2R_SETTING_INT,
+                model::Widget::Color => W2R_SETTING_COLOR,
+            },
+            flags: if d.hidden { W2R_SETTING_HIDDEN } else { 0 },
+            key: s(d.key),
+            label: s(d.label),
+            description: s(d.description),
+            category: s(model::CATEGORY),
+            subcategory: s(d.subcategory),
+            default_int: d.default,
+            min: d.min,
+            max: d.max,
+            default_str: s(d.default_text),
+            choices: core::ptr::null(),
+            choice_count: 0,
+            reserved: 0,
+            active_when: if d.active_when.is_empty() {
+                empty
+            } else {
+                s(d.active_when)
+            },
+        };
+        if unsafe { (h.settings_declare)(h.token, &def) } != W2R_OK {
+            refused += 1;
+        }
+    }
+    if refused == 0 {
+        DECLARED.store(true, Ordering::Release);
+        unsafe { (h.subscribe)(h.token, W2R_EVT_SETTINGS_CHANGED) };
+    } else {
+        log(
+            W2R_LOG_WARN,
+            &format!("{refused} settings refused by the host; drawing them on the plugin page"),
+        );
+    }
+}
+
+/// The options screen stored new values: read them all again.
+fn reload_settings() {
+    let was_logging = with_state(|st| st.settings.log);
+    with_state(|st| st.settings = load_settings());
+    load_colours();
+    if was_logging && !with_state(|st| st.settings.log) {
+        close_log();
+    }
+}
+
 unsafe extern "C" fn on_load(host: *const W2rHost) -> W2rStatus {
     HOST.store(host.cast_mut(), Ordering::Release);
+    declare_settings();
     let g = match resolve() {
         Ok(g) => g,
         Err(name) => {
@@ -1738,6 +1804,10 @@ unsafe extern "C" fn on_load(host: *const W2rHost) -> W2rStatus {
 
 unsafe extern "C" fn on_event(event: *const W2rEvent) {
     let id = unsafe { (*event).id };
+    if id == W2R_EVT_SETTINGS_CHANGED {
+        reload_settings();
+        return;
+    }
     if id == W2R_EVT_MATCH_START {
         let mask = game().map_or(0, |g| recipients(g, true));
         with_state(|st| {
@@ -1758,6 +1828,9 @@ unsafe extern "C" fn on_event(event: *const W2rEvent) {
 }
 
 unsafe extern "C" fn on_ui(ui: *const W2rUi) {
+    if DECLARED.load(Ordering::Acquire) {
+        return;
+    }
     let ui = unsafe { &*ui };
     let mut changed: Vec<(&'static str, i64)> = Vec::new();
     let (
