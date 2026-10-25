@@ -619,8 +619,8 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "w2r-abi"
-version = "0.1.0"
-source = "git+https://github.com/hastinbe/w2r-mod-loader?rev=93dd4f574e751c348fb6e845e558fe2b40282036#93dd4f574e751c348fb6e845e558fe2b40282036"
+version = "1.0.0"
+source = "git+https://github.com/hastinbe/w2r-mod-loader?rev=57036d8410ac46d2eb4b6ff0e4dccb1d8234a0fa#57036d8410ac46d2eb4b6ff0e4dccb1d8234a0fa"
 
 [[package]]
 name = "w2r-black-recolor"
@@ -646,13 +646,13 @@ dependencies = [
 
 [[package]]
 name = "w2r-formats"
-version = "0.1.0"
-source = "git+https://github.com/hastinbe/w2r-mod-loader?rev=93dd4f574e751c348fb6e845e558fe2b40282036#93dd4f574e751c348fb6e845e558fe2b40282036"
+version = "1.0.0"
+source = "git+https://github.com/hastinbe/w2r-mod-loader?rev=57036d8410ac46d2eb4b6ff0e4dccb1d8234a0fa#57036d8410ac46d2eb4b6ff0e4dccb1d8234a0fa"
 
 [[package]]
 name = "w2r-loader-lib"
-version = "0.1.0"
-source = "git+https://github.com/hastinbe/w2r-mod-loader?rev=93dd4f574e751c348fb6e845e558fe2b40282036#93dd4f574e751c348fb6e845e558fe2b40282036"
+version = "1.2.0"
+source = "git+https://github.com/hastinbe/w2r-mod-loader?rev=57036d8410ac46d2eb4b6ff0e4dccb1d8234a0fa#57036d8410ac46d2eb4b6ff0e4dccb1d8234a0fa"
 dependencies = [
  "sha2",
  "ureq",
@@ -693,8 +693,8 @@ dependencies = [
 
 [[package]]
 name = "w2r-preview"
-version = "0.1.0"
-source = "git+https://github.com/hastinbe/w2r-mod-loader?rev=93dd4f574e751c348fb6e845e558fe2b40282036#93dd4f574e751c348fb6e845e558fe2b40282036"
+version = "1.0.0"
+source = "git+https://github.com/hastinbe/w2r-mod-loader?rev=57036d8410ac46d2eb4b6ff0e4dccb1d8234a0fa#57036d8410ac46d2eb4b6ff0e4dccb1d8234a0fa"
 
 [[package]]
 name = "w2r-publish"
@@ -730,8 +730,8 @@ dependencies = [
 
 [[package]]
 name = "w2r-stats"
-version = "0.1.0"
-source = "git+https://github.com/hastinbe/w2r-mod-loader?rev=93dd4f574e751c348fb6e845e558fe2b40282036#93dd4f574e751c348fb6e845e558fe2b40282036"
+version = "1.0.0"
+source = "git+https://github.com/hastinbe/w2r-mod-loader?rev=57036d8410ac46d2eb4b6ff0e4dccb1d8234a0fa#57036d8410ac46d2eb4b6ff0e4dccb1d8234a0fa"
 dependencies = [
  "ed25519-dalek",
  "sha2",
