@@ -4,11 +4,11 @@
 
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicPtr, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
 
 use w2r_abi::*;
 
-use crate::model::{Controller, FOLDER_CAP, Maps, Rows, Unavailable, valid_players};
+use crate::model::{self, Controller, FOLDER_CAP, Maps, Rows, Unavailable, valid_players};
 
 /// The settings key holding the slider value (0 = any number of players).
 const KEY: &str = "players";
@@ -119,14 +119,16 @@ fn load_folder() -> String {
     let Some(h) = host() else {
         return String::new();
     };
-    let mut buf = [0u8; FOLDER_CAP];
+    // The options screen stores the folder as typed, which can be longer than FOLDER_CAP;
+    // `Controller::set_folder` shortens it.
+    let mut buf = vec![0u8; W2R_MAX_SETTING_STR as usize];
     let mut len = 0u32;
     let status = unsafe {
         (h.settings_get_str)(
             h.token,
             s(FOLDER_KEY),
             buf.as_mut_ptr().cast(),
-            FOLDER_CAP as u32,
+            buf.len() as u32,
             &mut len,
         )
     };
@@ -143,8 +145,69 @@ fn fill_edit(text: &str) {
     edit[..n].copy_from_slice(&text.as_bytes()[..n]);
 }
 
+/// Set when the host took the folder as a declaration: its options screen draws and stores it,
+/// so `on_ui` draws nothing.
+static DECLARED: AtomicBool = AtomicBool::new(false);
+
+/// Declares the folder to a host that has `settings_declare`; an older host keeps the edit box
+/// `on_ui` draws.
+fn declare_setting() {
+    let Some(h) = host() else { return };
+    if h.struct_size < W2R_HOST_SETTINGS_DECLARE_SIZE {
+        return;
+    }
+    let def = W2rSettingDef {
+        struct_size: W2R_SETTING_DEF_V1_SIZE,
+        kind: W2R_SETTING_STRING,
+        default_int: 0,
+        min: 0,
+        max: 0,
+        flags: 0,
+        choice_count: 0,
+        choices: core::ptr::null(),
+        reserved: 0,
+        key: s(FOLDER_KEY),
+        label: s(model::FOLDER_LABEL),
+        description: s(model::FOLDER_DESCRIPTION),
+        category: s(model::FOLDER_CATEGORY),
+        subcategory: s(model::FOLDER_SUBCATEGORY),
+        default_str: s(""),
+        active_when: s(""),
+    };
+    let status = unsafe { (h.settings_declare)(h.token, &def) };
+    if status == W2R_OK {
+        DECLARED.store(true, Ordering::Release);
+    } else {
+        log(
+            W2R_LOG_WARN,
+            &format!("settings_declare returned {status}; drawing the edit box"),
+        );
+    }
+}
+
+/// The options screen changed the folder.
+unsafe extern "C" fn on_event(event: *const W2rEvent) {
+    let _ = catch_unwind(AssertUnwindSafe(|| {
+        let Some(event) = (unsafe { event.as_ref() }) else {
+            return;
+        };
+        if event.id != W2R_EVT_SETTINGS_CHANGED {
+            return;
+        }
+        let folder = load_folder();
+        let mut state = STATE.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(c) = state.as_mut() {
+            c.set_folder(&folder);
+            fill_edit(c.folder());
+        }
+    }));
+}
+
 /// The plugin's page in the settings: the folder limit.
 unsafe extern "C" fn on_ui(ui: *const W2rUi) {
+    if DECLARED.load(Ordering::Acquire) {
+        return;
+    }
     let _ = catch_unwind(AssertUnwindSafe(|| {
         let Some(ui) = (unsafe { ui.as_ref() }) else {
             return;
@@ -209,6 +272,13 @@ unsafe extern "C" fn on_load(host: *const W2rHost) -> W2rStatus {
     controller.set_folder(&load_folder());
     fill_edit(controller.folder());
     *STATE.lock().unwrap_or_else(|e| e.into_inner()) = Some(controller);
+    declare_setting();
+    if unsafe { (h.subscribe)(h.token, W2R_EVT_SETTINGS_CHANGED) } != W2R_OK {
+        log(
+            W2R_LOG_WARN,
+            "cannot subscribe to settings changes; a new folder applies at the next launch",
+        );
+    }
     let status = unsafe { (h.create_ui_register)(h.token, Some(create_ui)) };
     if status != W2R_OK {
         log(
@@ -230,7 +300,7 @@ unsafe extern "C" fn on_unload() {
 static TABLE: W2rPlugin = W2rPlugin {
     struct_size: W2R_PLUGIN_V1_SIZE,
     on_load: Some(on_load),
-    on_event: None,
+    on_event: Some(on_event),
     on_ui: Some(on_ui),
     on_unload: Some(on_unload),
 };

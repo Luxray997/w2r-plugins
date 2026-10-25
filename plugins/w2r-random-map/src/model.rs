@@ -68,6 +68,12 @@ pub fn pick(count: u32, last: Option<u32>, rng: &mut Rng) -> u32 {
 /// The longest folder setting kept (the edit box holds one byte less).
 pub const FOLDER_CAP: usize = 128;
 
+/// The folder setting as the host's options screen shows it (`settings_declare`).
+pub const FOLDER_CATEGORY: &str = "Multiplayer";
+pub const FOLDER_SUBCATEGORY: &str = "Create Game";
+pub const FOLDER_LABEL: &str = "Random Map Folder";
+pub const FOLDER_DESCRIPTION: &str = "The Random map button only picks maps from this folder inside your maps folder and its subfolders, for example mp. Empty picks from every folder.";
+
 /// A folder setting as typed: trimmed, `/` turned into `\`, no leading or trailing separators.
 pub fn clean_folder(text: &str) -> String {
     text.trim()
@@ -176,6 +182,20 @@ impl Controller {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_declaration_fits_the_hosts_limits() {
+        assert!(FOLDER_LABEL.len() <= 64 && FOLDER_DESCRIPTION.len() <= 256);
+        assert!(FOLDER_CATEGORY.len() <= 32 && FOLDER_SUBCATEGORY.len() <= 32);
+        for text in [
+            FOLDER_LABEL,
+            FOLDER_DESCRIPTION,
+            FOLDER_CATEGORY,
+            FOLDER_SUBCATEGORY,
+        ] {
+            assert!(text.is_ascii() && !text.is_empty());
+        }
+    }
 
     #[derive(Default)]
     struct FakeRows {

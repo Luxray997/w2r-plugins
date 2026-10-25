@@ -9,9 +9,10 @@ maps for a chosen number of players.
   same list the map browser's search uses) that fits the slider. It never picks the same map twice
   in a row while more than one fits. The button shows how many maps fit; with none it says so
   instead.
-- **Folder setting** (the plugin's page in the settings): only pick maps from one folder inside
-  your maps folder and its subfolders, for example `mp` so a collection of single-player maps
-  elsewhere is never chosen. Empty means every folder. If the folder holds no maps the button area
+- **Folder setting:** **Random Map Folder** in the game's options screen, under Multiplayer /
+  Create Game (a W2R Mod Loader without the options screen shows it on the plugin's card instead):
+  only pick maps from one folder inside your maps folder and its subfolders, for example `mp` so a
+  collection of single-player maps elsewhere is never chosen. Empty means every folder. If the folder holds no maps the button area
   says so. Needs a w2rpm with `create_map_folder` (`W2R_HOST_MAP_FOLDER_SIZE`); on an older host a
   set folder disables the button rather than being ignored.
 - The first time the screen opens, the map index is read from the cache or built a few folders per
